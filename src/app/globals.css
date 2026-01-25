@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-white text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-white
+           bg-gradient-to-r from-pulse-red-600 to-pulse-pink-500
+           hover:from-pulse-red-700 hover:to-pulse-pink-600
+           transform transition-all duration-200 ease-out
+           hover:scale-[1.02] hover:shadow-glow
+           focus:outline-none focus:ring-2 focus:ring-pulse-red-500 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold
+           text-pulse-red-600 bg-white border-2 border-pulse-red-200
+           hover:bg-pulse-red-50 hover:border-pulse-red-300
+           transform transition-all duration-200 ease-out
+           focus:outline-none focus:ring-2 focus:ring-pulse-red-500 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm
+           hover:shadow-md hover:border-gray-200
+           transition-all duration-200;
+  }
+
+  .card-highlight {
+    @apply bg-gradient-to-br from-white to-pulse-red-50/30
+           rounded-2xl border border-pulse-red-100
+           shadow-sm hover:shadow-glow
+           transition-all duration-200;
+  }
+
+  .stat-card {
+    @apply card p-6 flex flex-col gap-2;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-gray-900;
+  }
+
+  .stat-label {
+    @apply text-sm font-medium text-gray-500 uppercase tracking-wide;
+  }
+
+  .stat-change-positive {
+    @apply inline-flex items-center gap-1 text-sm font-semibold text-profit;
+  }
+
+  .stat-change-negative {
+    @apply inline-flex items-center gap-1 text-sm font-semibold text-loss;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-pulse-red-600 to-pulse-pink-500 bg-clip-text text-transparent;
+  }
+
+  .glass-effect {
+    @apply backdrop-blur-lg bg-white/80 border border-white/20;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .animation-delay-150 {
+    animation-delay: 150ms;
+  }
+  
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Rainbow Kit Customization */
+[data-rk] {
+  --rk-colors-accentColor: #dc2626 !important;
+  --rk-colors-accentColorForeground: white !important;
+}
