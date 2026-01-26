@@ -1,10 +1,21 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import {
+  metaMaskWallet,
+  coinbaseWallet,
+  walletConnectWallet,
+  rabbyWallet,
+  okxWallet,
+  injectedWallet,
+  rainbowWallet,
+  trustWallet,
+} from "@rainbow-me/rainbowkit/wallets";
+import { createConfig, http } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 
-// Define Mezo chain (if not in default chains)
+// Define Mezo chain
 // Note: Update these values based on actual Mezo chain configuration
-const mezoMainnet = {
-  id: 31337, // Replace with actual Mezo chain ID
+export const mezoMainnet = {
+  id: 31611, // Mezo Mainnet chain ID
   name: "Mezo",
   nativeCurrency: {
     decimals: 18,
@@ -12,7 +23,7 @@ const mezoMainnet = {
     symbol: "BTC",
   },
   rpcUrls: {
-    default: { http: ["https://rpc.mezo.org"] }, // Replace with actual RPC
+    default: { http: ["https://rpc.mezo.org"] },
     public: { http: ["https://rpc.mezo.org"] },
   },
   blockExplorers: {
@@ -20,11 +31,43 @@ const mezoMainnet = {
   },
 } as const;
 
-export const config = getDefaultConfig({
-  appName: "Yield Pulse",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo",
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo";
+
+// Configure wallet groups
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Recommended",
+      wallets: [
+        metaMaskWallet,
+        rabbyWallet,
+        okxWallet,
+        coinbaseWallet,
+      ],
+    },
+    {
+      groupName: "Other Wallets",
+      wallets: [
+        walletConnectWallet,
+        rainbowWallet,
+        trustWallet,
+        injectedWallet,
+      ],
+    },
+  ],
+  {
+    appName: "Yield Pulse",
+    projectId,
+  }
+);
+
+export const config = createConfig({
+  connectors,
   chains: [mainnet, mezoMainnet, sepolia],
+  transports: {
+    [mainnet.id]: http(),
+    [mezoMainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
   ssr: true,
 });
-
-export { mezoMainnet };
