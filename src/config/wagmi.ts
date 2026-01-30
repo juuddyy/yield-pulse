@@ -12,10 +12,9 @@ import {
 import { createConfig, http } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 
-// Define Mezo chain
-// Note: Update these values based on actual Mezo chain configuration
+// Mezo Mainnet Configuration (from official docs)
 export const mezoMainnet = {
-  id: 31611, // Mezo Mainnet chain ID
+  id: 31612, // Mezo Mainnet chain ID
   name: "Mezo",
   nativeCurrency: {
     decimals: 18,
@@ -23,12 +22,31 @@ export const mezoMainnet = {
     symbol: "BTC",
   },
   rpcUrls: {
-    default: { http: ["https://rpc.mezo.org"] },
-    public: { http: ["https://rpc.mezo.org"] },
+    default: { http: ["https://rpc-http.mezo.boar.network"] },
+    public: { http: ["https://mezo.drpc.org"] },
   },
   blockExplorers: {
     default: { name: "Mezo Explorer", url: "https://explorer.mezo.org" },
   },
+} as const;
+
+// Mezo Testnet Configuration
+export const mezoTestnet = {
+  id: 31611, // Mezo Testnet chain ID
+  name: "Mezo Testnet",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Bitcoin",
+    symbol: "BTC",
+  },
+  rpcUrls: {
+    default: { http: ["https://rpc.test.mezo.org"] },
+    public: { http: ["https://rpc.test.mezo.org"] },
+  },
+  blockExplorers: {
+    default: { name: "Mezo Testnet Explorer", url: "https://explorer.test.mezo.org" },
+  },
+  testnet: true,
 } as const;
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo";
@@ -63,10 +81,11 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
   connectors,
-  chains: [mainnet, mezoMainnet, sepolia],
+  chains: [mezoMainnet, mainnet, mezoTestnet, sepolia],
   transports: {
+    [mezoMainnet.id]: http("https://rpc-http.mezo.boar.network"),
     [mainnet.id]: http(),
-    [mezoMainnet.id]: http(),
+    [mezoTestnet.id]: http("https://rpc.test.mezo.org"),
     [sepolia.id]: http(),
   },
   ssr: true,
