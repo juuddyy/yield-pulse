@@ -142,4 +142,41 @@ This document contains all the technical details needed to integrate Yield Pulse
 
 ---
 
+## 9. User Testnet Information
+
+**Testnet Wallet Address**: `0xb5726e2ea8df58e301f23f443373a344914034ff`
+
+**Testnet Explorer Link**: https://explorer.test.mezo.org/address/0xb5726e2ea8df58e301f23f443373a344914034ff
+
+---
+
+## 10. Key Mezo Repositories
+
+| Repository | Purpose |
+|------------|---------|
+| [tigris](https://github.com/mezo-org/tigris) | Gauge system & DEX (Solidly-inspired) |
+| [musd](https://github.com/mezo-org/musd) | MUSD stablecoin contracts |
+| [mezod](https://github.com/mezo-org/mezod) | Mezo chain client |
+
+---
+
+## 11. Testnet Contract Addresses (Sepolia/Mezo Testnet)
+
+### Portal Contracts (Sepolia)
+| Contract | Address |
+|----------|---------|
+| Portal Proxy | `0x6978E3e11b8Bc34ea836C1706fC742aC4Cb6b0Db` |
+| tBTC | `0x517f2982701695D4E52f1ECFBEf3ba31Df470161` |
+| WBTC (mock) | `0xdc5558c2873C6375d5a90551c9D0F853794D357D` |
+
+### Mezo Testnet
+| Item | Value |
+|------|-------|
+| Chain ID | `31611` |
+| RPC | `https://rpc.test.mezo.org` |
+| Explorer | https://explorer.test.mezo.org/ |
+| MUSD (Testnet) | `0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503` |
+
+---
+
 *Source: [Mezo Documentation](https://mezo.org/docs/users)*
