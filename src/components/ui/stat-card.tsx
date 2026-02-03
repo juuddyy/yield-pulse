@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 interface StatCardProps {
   label: string;
   value: string | number;
+  subValue?: string; // Secondary value (e.g., BTC equivalent)
   change?: number;
   changeLabel?: string;
   icon?: ReactNode;
@@ -18,6 +19,7 @@ interface StatCardProps {
 export function StatCard({
   label,
   value,
+  subValue,
   change,
   changeLabel,
   icon,
@@ -65,7 +67,12 @@ export function StatCard({
       </div>
 
       <div className="flex items-end justify-between gap-2">
-        <span className="stat-value">{formattedValue}</span>
+        <div className="flex flex-col">
+          <span className="stat-value">{formattedValue}</span>
+          {subValue && (
+            <span className="text-sm text-gray-500 font-medium">{subValue}</span>
+          )}
+        </div>
 
         {change !== undefined && (
           <div

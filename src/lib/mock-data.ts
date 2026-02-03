@@ -80,6 +80,9 @@ export const mockPositions: Position[] = [
   },
 ];
 
+// BTC price for mock calculations
+const MOCK_BTC_PRICE = 100000;
+
 // Calculate portfolio summary from positions
 export function calculatePortfolioSummary(
   positions: Position[]
@@ -99,7 +102,9 @@ export function calculatePortfolioSummary(
 
   return {
     totalValueUSD,
+    totalValueBTC: totalValueUSD / MOCK_BTC_PRICE,
     totalDepositedUSD,
+    totalDepositedBTC: totalDepositedUSD / MOCK_BTC_PRICE,
     totalPnlUSD,
     totalPnlPercentage,
     positionCount: positions.length,

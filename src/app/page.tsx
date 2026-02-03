@@ -153,14 +153,16 @@ function convertToPositionCard(pos: UserPosition) {
 // Dashboard for connected users
 function Dashboard() {
   const { isConnected, address, chain } = useAccount();
-  const { totalValue, totalDeposited, totalPnL, pnlPercent, positions: realPositions, isLoading, error } = usePositions();
+  const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error } = usePositions();
 
   // Use real data when connected, mock data for demo
   const useRealData = isConnected && realPositions.length > 0;
   
   const summary = useRealData ? {
     totalValueUSD: totalValue,
+    totalValueBTC: totalValueBTC,
     totalDepositedUSD: totalDeposited,
+    totalDepositedBTC: totalDepositedBTC,
     totalPnlUSD: totalPnL,
     totalPnlPercentage: pnlPercent,
     positionCount: realPositions.length,
@@ -247,6 +249,7 @@ function Dashboard() {
         <StatCard
           label="Total Value"
           value={summary.totalValueUSD}
+          subValue={summary.totalValueBTC ? `≈ ${summary.totalValueBTC.toFixed(6)} BTC` : undefined}
           format="currency"
           icon={<Wallet className="h-5 w-5" />}
           highlight
@@ -254,6 +257,7 @@ function Dashboard() {
         <StatCard
           label="Total Deposited"
           value={summary.totalDepositedUSD}
+          subValue={summary.totalDepositedBTC ? `≈ ${summary.totalDepositedBTC.toFixed(6)} BTC` : undefined}
           format="currency"
           icon={<PiggyBank className="h-5 w-5" />}
         />

@@ -29,7 +29,9 @@ export type PoolType = 'vault' | 'lp' | 'staking' | 'lending';
 
 export interface PortfolioSummary {
   totalValueUSD: number;
+  totalValueBTC?: number;
   totalDepositedUSD: number;
+  totalDepositedBTC?: number;
   totalPnlUSD: number;
   totalPnlPercentage: number;
   positionCount: number;
