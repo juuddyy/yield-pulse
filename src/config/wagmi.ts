@@ -81,11 +81,12 @@ const connectors = connectorsForWallets(
 
 export const config = createConfig({
   connectors,
-  chains: [mezoMainnet, mainnet, mezoTestnet, sepolia],
+  // Mezo Testnet first for testing, then Mainnet for production
+  chains: [mezoTestnet, mezoMainnet, mainnet, sepolia],
   transports: {
+    [mezoTestnet.id]: http("https://rpc.test.mezo.org"),
     [mezoMainnet.id]: http("https://rpc-http.mezo.boar.network"),
     [mainnet.id]: http(),
-    [mezoTestnet.id]: http("https://rpc.test.mezo.org"),
     [sepolia.id]: http(),
   },
   ssr: true,

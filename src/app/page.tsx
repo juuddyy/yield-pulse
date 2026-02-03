@@ -11,6 +11,8 @@ import {
   Sparkles,
   Shield,
   BarChart3,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 import { StatCard } from "@/components/ui/stat-card";
@@ -25,6 +27,7 @@ import {
   mockHistoricalData,
 } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
+import { usePositions, type UserPosition } from "@/hooks/usePositions";
 
 // Hero section for non-connected users
 function HeroSection() {
@@ -113,10 +116,67 @@ function HeroSection() {
   );
 }
 
+// Helper to convert UserPosition to the format PositionCard expects
+function convertToPositionCard(pos: UserPosition) {
+  return {
+    id: pos.id,
+    poolName: pos.name,
+    protocol: {
+      id: "mezo",
+      name: pos.protocol,
+      logo: "/mezo-logo.png",
+    },
+    type: pos.type as "vault" | "lp" | "staking" | "lending",
+    depositedAmount: parseFloat(pos.depositedAmount),
+    depositedAmountUSD: pos.depositedValue,
+    currentAmount: parseFloat(pos.currentAmount),
+    currentAmountUSD: pos.currentValue,
+    pnl: pos.pnl,
+    pnlPercentage: pos.pnlPercent,
+    apy: pos.apy,
+    token: {
+      symbol: pos.token,
+      name: pos.token,
+      logo: pos.token === "BTC" ? "/btc-logo.png" : "/musd-logo.png",
+      decimals: 18,
+    },
+    entryDate: new Date(), // Would need to track this
+  };
+}
+
 // Dashboard for connected users
 function Dashboard() {
-  const summary = mockPortfolioSummary;
-  const positions = mockPositions;
+  const { isConnected, address, chain } = useAccount();
+  const { totalValue, totalDeposited, totalPnL, pnlPercent, positions: realPositions, isLoading, error } = usePositions();
+
+  // Use real data when connected, mock data for demo
+  const useRealData = isConnected && realPositions.length > 0;
+  
+  const summary = useRealData ? {
+    totalValueUSD: totalValue,
+    totalDepositedUSD: totalDeposited,
+    totalPnlUSD: totalPnL,
+    totalPnlPercentage: pnlPercent,
+    positionCount: realPositions.length,
+    bestPerformingPosition: realPositions.reduce((best, current) => 
+      current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
+    ) ? {
+      poolName: realPositions.reduce((best, current) => 
+        current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
+      )?.name || '',
+      pnl: realPositions.reduce((best, current) => 
+        current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
+      )?.pnl || 0,
+      apy: realPositions.reduce((best, current) => 
+        current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
+      )?.apy || 0,
+    } : null,
+  } : mockPortfolioSummary;
+  
+  const positions = useRealData 
+    ? realPositions.map(convertToPositionCard)
+    : mockPositions;
+  
   const leaderboard = mockLeaderboard;
   const historicalData = mockHistoricalData;
 
@@ -124,10 +184,56 @@ function Dashboard() {
     <div className="container mx-auto px-4 py-8">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-500">
-          Your complete yield portfolio overview
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
+            <p className="text-gray-500">
+              {isConnected ? (
+                <>
+                  Connected to {chain?.name || 'Unknown Network'}
+                  {useRealData && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Live Data
+                    </span>
+                  )}
+                  {!useRealData && realPositions.length === 0 && !isLoading && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Demo Data
+                    </span>
+                  )}
+                </>
+              ) : (
+                "Connect wallet to see your positions"
+              )}
+            </p>
+          </div>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading positions...</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Error display */}
+        {error && (
+          <div className="mt-4 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-800">Error loading positions</p>
+              <p className="text-sm text-red-600">{error.message}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Connected wallet info */}
+        {isConnected && address && (
+          <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
+            <p className="text-xs text-gray-500 font-mono">
+              Wallet: {address.slice(0, 6)}...{address.slice(-4)}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Stats Grid */}
@@ -192,11 +298,31 @@ function Dashboard() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {positions.map((position) => (
-            <PositionCard key={position.id} position={position} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="card p-6 animate-pulse">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2" />
+                    <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="h-3 bg-gray-200 rounded" />
+                  <div className="h-3 bg-gray-200 rounded w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {positions.map((position) => (
+              <PositionCard key={position.id} position={position} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Leaderboard Section */}
@@ -212,7 +338,7 @@ function Dashboard() {
               Your Best Performing Position
             </h3>
             <p className="text-sm text-gray-600">
-              {summary.bestPerformingPosition?.poolName} is earning you{" "}
+              {summary.bestPerformingPosition?.poolName || 'Connect wallet to see'} is earning you{" "}
               <span className="text-profit font-semibold">
                 {formatCurrency(
                   (summary.bestPerformingPosition?.pnl || 0) / 30
