@@ -175,7 +175,40 @@ This document contains all the technical details needed to integrate Yield Pulse
 | Chain ID | `31611` |
 | RPC | `https://rpc.test.mezo.org` |
 | Explorer | https://explorer.test.mezo.org/ |
-| MUSD (Testnet) | `0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503` |
+
+### Testnet Contracts (Extracted from user transactions)
+
+#### Core Tokens
+| Contract | Address |
+|----------|---------|
+| BTC (Native) | `0x7b7C000000000000000000000000000000000000` |
+| MUSD | `0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503` |
+
+#### Voting Escrow (Lock) Contracts
+| Contract | Address |
+|----------|---------|
+| **VeBTC** | `0x38E35d92E6Bfc6787272A62345856B13eA12130a` |
+| **VeMEZO** | `0xaCE816CA2bcc9b12C59799dcC5A959Fb9b98111b` |
+| Voter | `0x263F1Fd5fB7F866881e1B6cD7d5d6c40Fd985F0D` |
+| BoostVoter | `0x21d7bDF5a5929AD179F8cA0c9014A0B62ae6Bfd1` |
+
+#### Vaults & Savings
+| Contract | Address |
+|----------|---------|
+| **MUSD Vault** | `0x44c8665fe06425Ca801f38DE39e71f61185E90AE` |
+| **MUSDSavingsRate** | `0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16` |
+
+#### DEX / Liquidity
+| Contract | Address |
+|----------|---------|
+| **Router (LP)** | `0xD245BeC6836D85e159763a5D2BFcE7CBC3488e03` |
+| CLSwapRouter | `0x3112908bB72ce9c26a321Eeb22EC8e051F3b6E6a` |
+
+#### System Contracts
+| Contract | Address |
+|----------|---------|
+| BTCCaller | `0x7b7C000000000000000000000000000000000000` |
+| MEZOCaller | `0x7B7c000000000000000000000000000000000001` |
 
 ---
 
