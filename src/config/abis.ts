@@ -34,19 +34,27 @@ export const ERC20_ABI = [
 ] as const;
 
 // VotingEscrow ABI (for veBTC and veMEZO)
-// Based on Curve's VotingEscrow pattern
+// NFT-based voting escrow (Solidly/Velodrome style)
 export const VOTING_ESCROW_ABI = [
-  // Get user's locked balance
+  // Get number of NFT locks owned
   {
-    inputs: [{ name: "addr", type: "address" }],
+    inputs: [{ name: "owner", type: "address" }],
     name: "balanceOf",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
-  // Get user's lock details
+  // Get token ID by index (ERC721 Enumerable)
   {
-    inputs: [{ name: "addr", type: "address" }],
+    inputs: [{ name: "owner", type: "address" }, { name: "index", type: "uint256" }],
+    name: "tokenOfOwnerByIndex",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  // Get lock details by token ID (Solidly style - returns struct)
+  {
+    inputs: [{ name: "_tokenId", type: "uint256" }],
     name: "locked",
     outputs: [
       { name: "amount", type: "int128" },
@@ -55,18 +63,23 @@ export const VOTING_ESCROW_ABI = [
     stateMutability: "view",
     type: "function",
   },
-  // Alternative lock structure (some implementations)
+  // Alternative: Get lock details by token ID (returns tuple)
   {
-    inputs: [{ name: "", type: "address" }],
+    inputs: [{ name: "tokenId", type: "uint256" }],
     name: "locked",
-    outputs: [
-      { name: "amount", type: "uint256" },
-      { name: "end", type: "uint256" },
-    ],
+    outputs: [{ name: "", type: "uint256" }, { name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
-  // Get total locked
+  // Get voting power of NFT
+  {
+    inputs: [{ name: "_tokenId", type: "uint256" }],
+    name: "balanceOfNFT",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  // Get total voting power
   {
     inputs: [],
     name: "totalSupply",
@@ -74,34 +87,7 @@ export const VOTING_ESCROW_ABI = [
     stateMutability: "view",
     type: "function",
   },
-  // Get user's token ID (if NFT-based)
-  {
-    inputs: [{ name: "owner", type: "address" }],
-    name: "tokenOfOwnerByIndex",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  // Get lock by token ID
-  {
-    inputs: [{ name: "tokenId", type: "uint256" }],
-    name: "locked",
-    outputs: [
-      { name: "amount", type: "int128" },
-      { name: "end", type: "uint256" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  // Get number of locks owned
-  {
-    inputs: [{ name: "owner", type: "address" }],
-    name: "balanceOfNFT",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  // ownerToNFTokenIdList - get all token IDs for owner
+  // ownerToNFTokenIdList - some contracts use this
   {
     inputs: [{ name: "owner", type: "address" }, { name: "index", type: "uint256" }],
     name: "ownerToNFTokenIdList",
