@@ -79,7 +79,9 @@ export function explainAPR(apr: number, principal: number): APRExplanation {
 }
 
 // Format date relative to now
-export function formatRelativeDate(date: Date): string {
+export function formatRelativeDate(date: Date | undefined | null): string {
+  if (!date) return "Unknown";
+  
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 

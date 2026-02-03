@@ -118,6 +118,14 @@ function HeroSection() {
 
 // Helper to convert UserPosition to the format PositionCard expects
 function convertToPositionCard(pos: UserPosition) {
+  // Map position type to poolType
+  const poolTypeMap: Record<string, "vault" | "lp" | "staking" | "lending"> = {
+    lock: "staking",
+    vault: "vault",
+    lp: "lp",
+    savings: "lending",
+  };
+
   return {
     id: pos.id,
     poolName: pos.name,
@@ -125,8 +133,10 @@ function convertToPositionCard(pos: UserPosition) {
       id: "mezo",
       name: pos.protocol,
       logo: "/mezo-logo.png",
+      color: "#dc2626",
+      website: "https://mezo.org",
     },
-    type: pos.type as "vault" | "lp" | "staking" | "lending",
+    poolType: poolTypeMap[pos.type] || "vault",
     depositedAmount: parseFloat(pos.depositedAmount),
     depositedAmountUSD: pos.depositedValue,
     currentAmount: parseFloat(pos.currentAmount),
@@ -134,13 +144,9 @@ function convertToPositionCard(pos: UserPosition) {
     pnl: pos.pnl,
     pnlPercentage: pos.pnlPercent,
     apy: pos.apy,
-    token: {
-      symbol: pos.token,
-      name: pos.token,
-      logo: pos.token === "BTC" ? "/btc-logo.png" : "/musd-logo.png",
-      decimals: 18,
-    },
-    entryDate: new Date(), // Would need to track this
+    tokenSymbol: pos.token,
+    tokenIcon: pos.token === "BTC" ? "/btc-logo.png" : "/musd-logo.png",
+    depositDate: new Date(), // Would need to track actual deposit date from events
   };
 }
 
