@@ -47,7 +47,7 @@ export function usePositions(): PortfolioData {
   // Read from multiple contracts
   const { data, isLoading, error } = useReadContracts({
     contracts: [
-      // veBTC locked balance
+      // veBTC - try balanceOf (returns NFT count or voting power)
       {
         address: MEZO_TESTNET_CONTRACTS.VeBTC,
         abi: VOTING_ESCROW_ABI,
@@ -55,11 +55,27 @@ export function usePositions(): PortfolioData {
         args: address ? [address] : undefined,
         chainId: CHAIN_IDS.MEZO_TESTNET,
       },
-      // veMEZO locked balance
+      // veBTC - try locked(address) to get actual locked amount
+      {
+        address: MEZO_TESTNET_CONTRACTS.VeBTC,
+        abi: VOTING_ESCROW_ABI,
+        functionName: "locked",
+        args: address ? [address] : undefined,
+        chainId: CHAIN_IDS.MEZO_TESTNET,
+      },
+      // veMEZO - try balanceOf (returns NFT count or voting power)
       {
         address: MEZO_TESTNET_CONTRACTS.VeMEZO,
         abi: VOTING_ESCROW_ABI,
         functionName: "balanceOf",
+        args: address ? [address] : undefined,
+        chainId: CHAIN_IDS.MEZO_TESTNET,
+      },
+      // veMEZO - try locked(address) to get actual locked amount
+      {
+        address: MEZO_TESTNET_CONTRACTS.VeMEZO,
+        abi: VOTING_ESCROW_ABI,
+        functionName: "locked",
         args: address ? [address] : undefined,
         chainId: CHAIN_IDS.MEZO_TESTNET,
       },
@@ -122,11 +138,31 @@ export function usePositions(): PortfolioData {
   // Process the data into positions
   const positions: UserPosition[] = [];
 
+  // Debug: log raw data to console
+  if (typeof window !== 'undefined' && data) {
+    console.log('Contract read results:', data);
+  }
+
   if (data && address) {
-    // veBTC Position
+    // veBTC Position - indices 0 (balanceOf) and 1 (locked)
     const veBtcBalance = data[0]?.result as bigint | undefined;
-    if (veBtcBalance && veBtcBalance > 0n) {
-      const amount = parseFloat(formatUnits(veBtcBalance, 18));
+    const veBtcLocked = data[1]?.result as [bigint, bigint] | { amount: bigint; end: bigint } | undefined;
+    
+    // Try to get the locked amount from the locked() result
+    let veBtcLockedAmount: bigint | undefined;
+    if (veBtcLocked) {
+      if (Array.isArray(veBtcLocked)) {
+        veBtcLockedAmount = veBtcLocked[0]; // [amount, end]
+      } else if (typeof veBtcLocked === 'object' && 'amount' in veBtcLocked) {
+        veBtcLockedAmount = veBtcLocked.amount;
+      }
+    }
+    
+    // Use locked amount if available, otherwise fall back to balanceOf
+    const veBtcValue = veBtcLockedAmount || veBtcBalance;
+    
+    if (veBtcValue && veBtcValue > 0n) {
+      const amount = parseFloat(formatUnits(veBtcValue, 18));
       const value = amount * BTC_PRICE_USD;
       positions.push({
         id: "vebtc-lock",
@@ -134,21 +170,36 @@ export function usePositions(): PortfolioData {
         protocol: "Mezo",
         type: "lock",
         depositedAmount: amount.toFixed(6),
-        depositedValue: value, // Simplified - in reality track actual deposit
+        depositedValue: value,
         currentAmount: amount.toFixed(6),
         currentValue: value,
-        pnl: 0, // Would need historical data
+        pnl: 0,
         pnlPercent: 0,
-        apy: 15.8, // From Mezo docs - veBTC earns fees
+        apy: 15.8,
         token: "BTC",
         contractAddress: MEZO_TESTNET_CONTRACTS.VeBTC,
       });
     }
 
-    // veMEZO Position
-    const veMezoBalance = data[1]?.result as bigint | undefined;
-    if (veMezoBalance && veMezoBalance > 0n) {
-      const amount = parseFloat(formatUnits(veMezoBalance, 18));
+    // veMEZO Position - indices 2 (balanceOf) and 3 (locked)
+    const veMezoBalance = data[2]?.result as bigint | undefined;
+    const veMezoLocked = data[3]?.result as [bigint, bigint] | { amount: bigint; end: bigint } | undefined;
+    
+    // Try to get the locked amount from the locked() result
+    let veMezoLockedAmount: bigint | undefined;
+    if (veMezoLocked) {
+      if (Array.isArray(veMezoLocked)) {
+        veMezoLockedAmount = veMezoLocked[0];
+      } else if (typeof veMezoLocked === 'object' && 'amount' in veMezoLocked) {
+        veMezoLockedAmount = veMezoLocked.amount;
+      }
+    }
+    
+    // Use locked amount if available, otherwise fall back to balanceOf
+    const veMezoValue = veMezoLockedAmount || veMezoBalance;
+    
+    if (veMezoValue && veMezoValue > 0n) {
+      const amount = parseFloat(formatUnits(veMezoValue, 18));
       positions.push({
         id: "vemezo-lock",
         name: "veMEZO Lock",
@@ -166,10 +217,10 @@ export function usePositions(): PortfolioData {
       });
     }
 
-    // MUSD Vault Position
-    const vaultShares = data[2]?.result as bigint | undefined;
-    const vaultTotalAssets = data[3]?.result as bigint | undefined;
-    const vaultTotalSupply = data[4]?.result as bigint | undefined;
+    // MUSD Vault Position - indices 4 (balanceOf), 5 (totalAssets), 6 (totalSupply)
+    const vaultShares = data[4]?.result as bigint | undefined;
+    const vaultTotalAssets = data[5]?.result as bigint | undefined;
+    const vaultTotalSupply = data[6]?.result as bigint | undefined;
     
     if (vaultShares && vaultShares > 0n && vaultTotalAssets && vaultTotalSupply && vaultTotalSupply > 0n) {
       const shares = parseFloat(formatUnits(vaultShares, 18));
@@ -201,10 +252,10 @@ export function usePositions(): PortfolioData {
       });
     }
 
-    // MUSD Savings Rate Position
-    const savingsShares = data[5]?.result as bigint | undefined;
-    const savingsTotalAssets = data[6]?.result as bigint | undefined;
-    const savingsTotalSupply = data[7]?.result as bigint | undefined;
+    // MUSD Savings Rate Position - indices 7 (balanceOf), 8 (totalAssets), 9 (totalSupply)
+    const savingsShares = data[7]?.result as bigint | undefined;
+    const savingsTotalAssets = data[8]?.result as bigint | undefined;
+    const savingsTotalSupply = data[9]?.result as bigint | undefined;
     
     if (savingsShares && savingsShares > 0n && savingsTotalAssets && savingsTotalSupply && savingsTotalSupply > 0n) {
       const shares = parseFloat(formatUnits(savingsShares, 18));
@@ -235,8 +286,8 @@ export function usePositions(): PortfolioData {
       });
     }
 
-    // MUSD Token Balance (not earning, just held)
-    const musdBalance = data[8]?.result as bigint | undefined;
+    // MUSD Token Balance (not earning, just held) - index 10
+    const musdBalance = data[10]?.result as bigint | undefined;
     if (musdBalance && musdBalance > 0n) {
       const amount = parseFloat(formatUnits(musdBalance, 18));
       if (amount > 0.01) { // Only show if meaningful balance
