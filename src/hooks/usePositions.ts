@@ -294,7 +294,7 @@ export function usePositions(): PortfolioData {
 
       positions.push({
         id: "musd-vault",
-        name: "MUSD Vault",
+        name: "MUSD Core Vault",
         protocol: "Mezo",
         type: "vault",
         depositedAmount: shares.toFixed(2),
@@ -339,7 +339,7 @@ export function usePositions(): PortfolioData {
 
       positions.push({
         id: "musd-savings",
-        name: "MUSD Savings",
+        name: "MUSD Savings Rate (sMUSD)",
         protocol: "Mezo",
         type: "savings",
         depositedAmount: shares.toFixed(2),

@@ -116,11 +116,11 @@ export function calculatePortfolioSummary(
 // Mock portfolio summary
 export const mockPortfolioSummary = calculatePortfolioSummary(mockPositions);
 
-// Mock leaderboard data
+// Mock leaderboard data (using realistic testnet addresses)
 export const mockLeaderboard: WalletLeaderboardEntry[] = [
   {
     rank: 1,
-    address: "0x7a3d8...4f82",
+    address: "0x7a3d8F4c9E2b1A5d6C8e3F9B2a4D7E8c1f924f82",
     totalValueUSD: 847520,
     totalPnlUSD: 156840,
     pnlPercentage: 34.2,
@@ -130,7 +130,7 @@ export const mockLeaderboard: WalletLeaderboardEntry[] = [
   },
   {
     rank: 2,
-    address: "0x9c1e2...a45b",
+    address: "0x9c1e2A5B8d3F7C6e4A9b2D8E1c5F3a7B9d4ea45b",
     totalValueUSD: 523100,
     totalPnlUSD: 89450,
     pnlPercentage: 28.7,
@@ -140,7 +140,7 @@ export const mockLeaderboard: WalletLeaderboardEntry[] = [
   },
   {
     rank: 3,
-    address: "0x2b84f...e91c",
+    address: "0x2b84fC7A9e3D1B5c8F6a4E2d7C9B3f8A1e5de91c",
     totalValueUSD: 412800,
     totalPnlUSD: 72350,
     pnlPercentage: 24.1,
@@ -150,7 +150,7 @@ export const mockLeaderboard: WalletLeaderboardEntry[] = [
   },
   {
     rank: 4,
-    address: "0x5d91a...b27e",
+    address: "0x5d91aE8c2F4B7d9A3e6C1b5D8f2A4e7C9b3db27e",
     totalValueUSD: 298400,
     totalPnlUSD: 48920,
     pnlPercentage: 21.5,
@@ -160,7 +160,7 @@ export const mockLeaderboard: WalletLeaderboardEntry[] = [
   },
   {
     rank: 5,
-    address: "0x1f7c3...d84a",
+    address: "0x1f7c3B9a4E8d2C5F7b3A6e9D1c4F8a2B5e7dd84a",
     totalValueUSD: 185200,
     totalPnlUSD: 28640,
     pnlPercentage: 18.3,

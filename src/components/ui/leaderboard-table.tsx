@@ -13,6 +13,8 @@ import { Trophy, Medal, Award, TrendingUp, ExternalLink } from "lucide-react";
 
 interface LeaderboardTableProps {
   entries: WalletLeaderboardEntry[];
+  currentUserAddress?: string;
+  currentUserRank?: number;
   className?: string;
 }
 
@@ -28,18 +30,28 @@ const rankColors: Record<number, string> = {
   3: "text-amber-600",
 };
 
-export function LeaderboardTable({ entries, className }: LeaderboardTableProps) {
+export function LeaderboardTable({ entries, currentUserAddress, currentUserRank, className }: LeaderboardTableProps) {
   return (
     <div className={cn("card overflow-hidden", className)}>
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-        <div className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-pulse-red-600" />
-          <h2 className="font-semibold text-gray-900">Top Yielding Wallets</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-pulse-red-600" />
+              <h2 className="font-semibold text-gray-900">Top Yielding Wallets</h2>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Wallets with the best yield performance this month
+            </p>
+          </div>
+          {currentUserRank && (
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Your Rank</p>
+              <p className="text-2xl font-bold text-pulse-red-600">#{currentUserRank}</p>
+            </div>
+          )}
         </div>
-        <p className="text-sm text-gray-500 mt-1">
-          Wallets with the best yield performance this month
-        </p>
       </div>
 
       {/* Table */}
@@ -71,11 +83,15 @@ export function LeaderboardTable({ entries, className }: LeaderboardTableProps) 
             {entries.map((entry) => {
               const RankIcon = rankIcons[entry.rank];
               const rankColor = rankColors[entry.rank];
+              const isCurrentUser = currentUserAddress && entry.address.toLowerCase() === currentUserAddress.toLowerCase();
 
               return (
                 <tr
                   key={entry.address}
-                  className="hover:bg-gray-50/50 transition-colors"
+                  className={cn(
+                    "hover:bg-gray-50/50 transition-colors",
+                    isCurrentUser && "bg-pulse-red-50/50 border-l-2 border-pulse-red-500"
+                  )}
                 >
                   {/* Rank */}
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -92,17 +108,23 @@ export function LeaderboardTable({ entries, className }: LeaderboardTableProps) 
 
                   {/* Wallet */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
+                    <a 
+                      href={`https://explorer.test.mezo.org/address/${entry.address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 group"
+                    >
                       <div className="h-8 w-8 rounded-full bg-gradient-to-br from-pulse-red-400 to-pulse-pink-400" />
                       <div>
-                        <p className="font-mono text-sm font-medium text-gray-900">
+                        <p className="font-mono text-sm font-medium text-gray-900 group-hover:text-pulse-red-600 transition-colors flex items-center gap-1">
                           {shortenAddress(entry.address, 6)}
+                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </p>
                         <p className="text-xs text-gray-400">
                           Active {formatRelativeDate(entry.lastActive)}
                         </p>
                       </div>
-                    </div>
+                    </a>
                   </td>
 
                   {/* Total Value */}

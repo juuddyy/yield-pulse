@@ -146,7 +146,7 @@ function convertToPositionCard(pos: UserPosition) {
     apy: pos.apy,
     tokenSymbol: pos.token,
     tokenIcon: pos.token === "BTC" ? "/btc-logo.png" : "/musd-logo.png",
-    depositDate: new Date(), // Would need to track actual deposit date from events
+    depositDate: pos.unlockDate || undefined, // Use unlock date if available, otherwise undefined
   };
 }
 
@@ -337,7 +337,11 @@ function Dashboard() {
 
       {/* Leaderboard Section */}
       <div className="mb-8">
-        <LeaderboardTable entries={leaderboard.slice(0, 5)} />
+        <LeaderboardTable 
+          entries={leaderboard.slice(0, 5)} 
+          currentUserAddress={address}
+          currentUserRank={isConnected ? 42 : undefined} // TODO: Calculate actual rank from blockchain
+        />
       </div>
 
       {/* Quick Stats Banner */}

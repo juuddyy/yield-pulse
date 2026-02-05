@@ -12,7 +12,7 @@ export interface Position {
   pnl: number;
   pnlPercentage: number;
   apy: number;
-  depositDate: Date;
+  depositDate?: Date; // Optional - may not be available from blockchain
   tokenSymbol: string;
   tokenIcon?: string;
 }

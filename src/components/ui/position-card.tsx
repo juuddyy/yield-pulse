@@ -140,11 +140,22 @@ export function PositionCard({ position, className }: PositionCardProps) {
       <div className="flex items-center justify-between text-xs text-gray-400">
         <span className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
-          Deposited {formatRelativeDate(position.depositDate)}
+          {position.depositDate ? (
+            position.depositDate > new Date() 
+              ? `Unlocks ${formatRelativeDate(position.depositDate)}`
+              : `Deposited ${formatRelativeDate(position.depositDate)}`
+          ) : (
+            "Position Active"
+          )}
         </span>
-        <button className="text-pulse-red-600 hover:text-pulse-red-700 font-medium transition-colors">
-          View Details →
-        </button>
+        <a 
+          href={`https://explorer.test.mezo.org/address/${position.protocol.id === 'mezo' ? '0xb5726E2eA8Df58e301F23f443373a344914034FF' : ''}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-pulse-red-600 hover:text-pulse-red-700 font-medium transition-colors"
+        >
+          View on Explorer →
+        </a>
       </div>
     </div>
   );
