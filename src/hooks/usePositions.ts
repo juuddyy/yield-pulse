@@ -62,7 +62,7 @@ export function usePositions(): PortfolioData {
         address: MEZO_TESTNET_CONTRACTS.VeBTC,
         abi: VOTING_ESCROW_ABI,
         functionName: "tokenOfOwnerByIndex",
-        args: address ? [address, 0n] : undefined,
+        args: address ? [address, BigInt(0)] : undefined,
         chainId: CHAIN_IDS.MEZO_TESTNET,
       },
       // veMEZO - try balanceOf (returns NFT count or voting power)
@@ -78,7 +78,7 @@ export function usePositions(): PortfolioData {
         address: MEZO_TESTNET_CONTRACTS.VeMEZO,
         abi: VOTING_ESCROW_ABI,
         functionName: "tokenOfOwnerByIndex",
-        args: address ? [address, 0n] : undefined,
+        args: address ? [address, BigInt(0)] : undefined,
         chainId: CHAIN_IDS.MEZO_TESTNET,
       },
       // MUSD Vault shares
@@ -142,27 +142,39 @@ export function usePositions(): PortfolioData {
   const veMezoTokenId = data?.[3]?.result as bigint | undefined;
 
   // Second batch: Get locked amounts using token IDs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lockContracts: any[] = [];
+  if (veBtcTokenId !== undefined) {
+    lockContracts.push({
+      address: MEZO_TESTNET_CONTRACTS.VeBTC,
+      abi: VOTING_ESCROW_ABI,
+      functionName: "locked",
+      args: [veBtcTokenId],
+      chainId: CHAIN_IDS.MEZO_TESTNET,
+    });
+  }
+  if (veMezoTokenId !== undefined) {
+    lockContracts.push({
+      address: MEZO_TESTNET_CONTRACTS.VeMEZO,
+      abi: VOTING_ESCROW_ABI,
+      functionName: "locked",
+      args: [veMezoTokenId],
+      chainId: CHAIN_IDS.MEZO_TESTNET,
+    });
+  }
+
   const { data: lockData, isLoading: isLoadingLocks } = useReadContracts({
-    contracts: [
-      // veBTC locked amount by token ID
+    contracts: lockContracts.length > 0 ? lockContracts : [
+      // Placeholder when no token IDs available
       {
         address: MEZO_TESTNET_CONTRACTS.VeBTC,
         abi: VOTING_ESCROW_ABI,
-        functionName: "locked",
-        args: veBtcTokenId !== undefined ? [veBtcTokenId] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
-      },
-      // veMEZO locked amount by token ID
-      {
-        address: MEZO_TESTNET_CONTRACTS.VeMEZO,
-        abi: VOTING_ESCROW_ABI,
-        functionName: "locked",
-        args: veMezoTokenId !== undefined ? [veMezoTokenId] : undefined,
+        functionName: "totalSupply",
         chainId: CHAIN_IDS.MEZO_TESTNET,
       },
     ],
     query: {
-      enabled: isConnected && !!address && (veBtcTokenId !== undefined || veMezoTokenId !== undefined),
+      enabled: isConnected && !!address && lockContracts.length > 0,
     },
   });
 
@@ -181,11 +193,14 @@ export function usePositions(): PortfolioData {
     // veBTC Position - index 0 (balanceOf/NFT count), index 1 (tokenId)
     const veBtcNftCount = data[0]?.result as bigint | undefined;
     
-    // Get locked amount from second read
+    // Get locked amount from second read (dynamic index based on token availability)
     let veBtcLockedAmount: bigint | undefined;
     let veBtcLockEnd: bigint | undefined;
-    if (lockData?.[0]?.result) {
-      const lockedResult = lockData[0].result as [bigint, bigint] | { amount: bigint; end: bigint };
+    const veBtcLockIndex = veBtcTokenId !== undefined ? 0 : -1;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lockDataArray = lockData as any[] | undefined;
+    if (veBtcLockIndex >= 0 && lockDataArray?.[veBtcLockIndex]?.result) {
+      const lockedResult = lockDataArray[veBtcLockIndex].result as [bigint, bigint] | { amount: bigint; end: bigint };
       if (Array.isArray(lockedResult)) {
         veBtcLockedAmount = lockedResult[0];
         veBtcLockEnd = lockedResult[1];
@@ -196,9 +211,9 @@ export function usePositions(): PortfolioData {
     }
     
     // Only show if we have actual locked amount (not just NFT count)
-    if (veBtcNftCount && veBtcNftCount > 0n && veBtcLockedAmount && veBtcLockedAmount > 0n) {
+    if (veBtcNftCount && veBtcNftCount > BigInt(0) && veBtcLockedAmount && veBtcLockedAmount > BigInt(0)) {
       // Handle potential int128 (could be stored as negative in some implementations)
-      const rawAmount = veBtcLockedAmount < 0n ? -veBtcLockedAmount : veBtcLockedAmount;
+      const rawAmount = veBtcLockedAmount < BigInt(0) ? -veBtcLockedAmount : veBtcLockedAmount;
       const amount = parseFloat(formatUnits(rawAmount, 18));
       const value = amount * BTC_PRICE_USD;
       positions.push({
@@ -215,18 +230,19 @@ export function usePositions(): PortfolioData {
         apy: 15.8,
         token: "BTC",
         contractAddress: MEZO_TESTNET_CONTRACTS.VeBTC,
-        unlockDate: veBtcLockEnd && veBtcLockEnd > 0n ? new Date(Number(veBtcLockEnd) * 1000) : undefined,
+        unlockDate: veBtcLockEnd && veBtcLockEnd > BigInt(0) ? new Date(Number(veBtcLockEnd) * 1000) : undefined,
       });
     }
 
     // veMEZO Position - index 2 (balanceOf/NFT count), index 3 (tokenId)
     const veMezoNftCount = data[2]?.result as bigint | undefined;
     
-    // Get locked amount from second read
+    // Get locked amount from second read (dynamic index)
     let veMezoLockedAmount: bigint | undefined;
     let veMezoLockEnd: bigint | undefined;
-    if (lockData?.[1]?.result) {
-      const lockedResult = lockData[1].result as [bigint, bigint] | { amount: bigint; end: bigint };
+    const veMezoLockIndex = veBtcTokenId !== undefined ? 1 : (veMezoTokenId !== undefined ? 0 : -1);
+    if (veMezoLockIndex >= 0 && lockDataArray?.[veMezoLockIndex]?.result) {
+      const lockedResult = lockDataArray[veMezoLockIndex].result as [bigint, bigint] | { amount: bigint; end: bigint };
       if (Array.isArray(lockedResult)) {
         veMezoLockedAmount = lockedResult[0];
         veMezoLockEnd = lockedResult[1];
@@ -237,8 +253,8 @@ export function usePositions(): PortfolioData {
     }
     
     // Only show if we have actual locked amount
-    if (veMezoNftCount && veMezoNftCount > 0n && veMezoLockedAmount && veMezoLockedAmount > 0n) {
-      const rawAmount = veMezoLockedAmount < 0n ? -veMezoLockedAmount : veMezoLockedAmount;
+    if (veMezoNftCount && veMezoNftCount > BigInt(0) && veMezoLockedAmount && veMezoLockedAmount > BigInt(0)) {
+      const rawAmount = veMezoLockedAmount < BigInt(0) ? -veMezoLockedAmount : veMezoLockedAmount;
       const amount = parseFloat(formatUnits(rawAmount, 18));
       positions.push({
         id: "vemezo-lock",
@@ -254,7 +270,7 @@ export function usePositions(): PortfolioData {
         apy: 0, // Boost multiplier, not direct APY
         token: "MEZO",
         contractAddress: MEZO_TESTNET_CONTRACTS.VeMEZO,
-        unlockDate: veMezoLockEnd && veMezoLockEnd > 0n ? new Date(Number(veMezoLockEnd) * 1000) : undefined,
+        unlockDate: veMezoLockEnd && veMezoLockEnd > BigInt(0) ? new Date(Number(veMezoLockEnd) * 1000) : undefined,
       });
     }
 
@@ -263,7 +279,7 @@ export function usePositions(): PortfolioData {
     const vaultTotalAssets = data[5]?.result as bigint | undefined;
     const vaultTotalSupply = data[6]?.result as bigint | undefined;
     
-    if (vaultShares && vaultShares > 0n && vaultTotalAssets && vaultTotalSupply && vaultTotalSupply > 0n) {
+    if (vaultShares && vaultShares > BigInt(0) && vaultTotalAssets && vaultTotalSupply && vaultTotalSupply > BigInt(0)) {
       const shares = parseFloat(formatUnits(vaultShares, 18));
       const totalAssets = parseFloat(formatUnits(vaultTotalAssets, 18));
       const totalSupply = parseFloat(formatUnits(vaultTotalSupply, 18));
@@ -299,19 +315,19 @@ export function usePositions(): PortfolioData {
     const savingsTotalSupply = data[9]?.result as bigint | undefined;
     
     // Show savings position even if totalAssets fails - use shares as fallback
-    if (savingsShares && savingsShares > 0n) {
+    if (savingsShares && savingsShares > BigInt(0)) {
       const shares = parseFloat(formatUnits(savingsShares, 18));
       
       let currentAssets = shares; // Default: assume 1:1 ratio
       let shareRatio = 1;
       
       // If we have both totalAssets and totalSupply, calculate actual ratio
-      if (savingsTotalAssets && savingsTotalSupply && savingsTotalSupply > 0n) {
+      if (savingsTotalAssets && savingsTotalSupply && savingsTotalSupply > BigInt(0)) {
         const totalAssets = parseFloat(formatUnits(savingsTotalAssets, 18));
         const totalSupply = parseFloat(formatUnits(savingsTotalSupply, 18));
         shareRatio = totalAssets / totalSupply;
         currentAssets = shares * shareRatio;
-      } else if (savingsTotalSupply && savingsTotalSupply > 0n) {
+      } else if (savingsTotalSupply && savingsTotalSupply > BigInt(0)) {
         // If only totalSupply available, assume 1:1 for now
         currentAssets = shares;
       }
@@ -340,7 +356,7 @@ export function usePositions(): PortfolioData {
 
     // MUSD Token Balance (not earning, just held) - index 10
     const musdBalance = data[10]?.result as bigint | undefined;
-    if (musdBalance && musdBalance > 0n) {
+    if (musdBalance && musdBalance > BigInt(0)) {
       const amount = parseFloat(formatUnits(musdBalance, 18));
       if (amount > 0.01) { // Only show if meaningful balance
         positions.push({
@@ -363,7 +379,7 @@ export function usePositions(): PortfolioData {
   }
 
   // Add native BTC balance if exists
-  if (btcBalance && btcBalance.value > 0n) {
+  if (btcBalance && btcBalance.value > BigInt(0)) {
     const amount = parseFloat(formatUnits(btcBalance.value, 18));
     const value = amount * BTC_PRICE_USD;
     if (amount > 0.00001) { // Only show if meaningful

@@ -74,9 +74,9 @@ export const VOTING_ESCROW_ABI = [
     stateMutability: "view",
     type: "function",
   },
-  // Get user's token ID (if NFT-based)
+  // Get user's token ID (if NFT-based) - ERC721 Enumerable
   {
-    inputs: [{ name: "owner", type: "address" }],
+    inputs: [{ name: "owner", type: "address" }, { name: "index", type: "uint256" }],
     name: "tokenOfOwnerByIndex",
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
