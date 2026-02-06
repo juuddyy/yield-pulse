@@ -155,8 +155,8 @@ function Dashboard() {
   const { isConnected, address, chain } = useAccount();
   const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error } = usePositions();
 
-  // Use real data when connected, mock data for demo
-  const useRealData = isConnected && realPositions.length > 0;
+  // Use real data when connected (even if empty), mock data only when disconnected
+  const useRealData = isConnected;
   
   const summary = useRealData ? {
     totalValueUSD: totalValue,
@@ -299,8 +299,12 @@ function Dashboard() {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Your Positions</h2>
             <p className="text-sm text-gray-500">
-              {positions.length} active positions across{" "}
-              {new Set(positions.map((p) => p.protocol.id)).size} protocols
+              {positions.length > 0 
+                ? `${positions.length} active position${positions.length !== 1 ? 's' : ''} across ${new Set(positions.map((p) => p.protocol.id)).size} protocol${new Set(positions.map((p) => p.protocol.id)).size !== 1 ? 's' : ''}`
+                : isConnected 
+                  ? "Scanning blockchain for positions..."
+                  : "Connect wallet to see your positions"
+              }
             </p>
           </div>
           <button className="btn-secondary text-sm py-2 px-4">
@@ -325,6 +329,26 @@ function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : positions.length === 0 && isConnected ? (
+          <div className="card p-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 mx-auto mb-4">
+              <Wallet className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No positions found
+            </h3>
+            <p className="text-gray-500 mb-4">
+              No yield positions detected for this wallet on Mezo Testnet.
+            </p>
+            <a 
+              href="https://mezo.org" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn-primary inline-block"
+            >
+              Explore Mezo Vaults →
+            </a>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

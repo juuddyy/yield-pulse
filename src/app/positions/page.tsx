@@ -55,8 +55,8 @@ export default function PositionsPage() {
   const { isConnected, address } = useAccount();
   const { positions: realPositions, totalPnL, isLoading } = usePositions();
   
-  // Use real data when connected, mock data for demo
-  const useRealData = isConnected && realPositions.length > 0;
+  // Use real data when connected (even if empty), mock data only when disconnected
+  const useRealData = isConnected;
   const positions = useRealData 
     ? realPositions.map(convertToPositionCard)
     : mockPositions;
