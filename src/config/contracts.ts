@@ -26,24 +26,24 @@ export const MEZO_TESTNET_CONTRACTS = {
 } as const;
 
 // Mezo Mainnet Contract Addresses
-// Some addresses still need to be discovered - marked with TODO
+// Extracted from official mezo-org/tigris GitHub repository
 export const MEZO_MAINNET_CONTRACTS = {
   // Core Tokens
   BTC: "0x7b7C000000000000000000000000000000000000" as const,
   MUSD: "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186" as const,
 
-  // Voting Escrow (Lock) Contracts - TODO: Need mainnet addresses
-  VeBTC: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
-  VeMEZO: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
-  Voter: "0x0000000000000000000000000000000000000000" as const,
-  BoostVoter: "0x0000000000000000000000000000000000000000" as const,
+  // Voting Escrow (Lock) Contracts - from mezo-org/tigris deployments/mainnet
+  VeBTC: "0x7D807e9CE1ef73048FEe9A4214e75e894ea25914" as const,
+  VeMEZO: "0x0000000000000000000000000000000000000000" as const, // Not deployed yet on mainnet
+  Voter: "0x3A4a6919F70e5b0aA32401747C471eCfe2322C1b" as const, // VeBTCVoter
+  BoostVoter: "0x0000000000000000000000000000000000000000" as const, // Not deployed yet
 
-  // Vaults & Savings - TODO: Need mainnet addresses
-  MUSDVault: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
-  MUSDSavingsRate: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
+  // Vaults & Savings - TODO: Need to find mainnet addresses
+  MUSDVault: "0x0000000000000000000000000000000000000000" as const,
+  MUSDSavingsRate: "0x0000000000000000000000000000000000000000" as const,
 
-  // DEX / Liquidity
-  Router: "0x0000000000000000000000000000000000000000" as const,
+  // DEX / Liquidity - from mezo-org/tigris deployments/mainnet
+  Router: "0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706" as const,
   CLSwapRouter: "0x0000000000000000000000000000000000000000" as const,
 
   // Pools (from docs)

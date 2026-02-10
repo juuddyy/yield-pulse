@@ -82,13 +82,25 @@ export const VOTING_ESCROW_ABI = [
     stateMutability: "view",
     type: "function",
   },
-  // Get lock by token ID
+  // Get lock by token ID (testnet format)
   {
     inputs: [{ name: "tokenId", type: "uint256" }],
     name: "locked",
     outputs: [
       { name: "amount", type: "int128" },
       { name: "end", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  // Get lock by token ID (mainnet format - includes isPermanent)
+  {
+    inputs: [{ name: "_tokenId", type: "uint256" }],
+    name: "locked",
+    outputs: [
+      { name: "amount", type: "int128" },
+      { name: "end", type: "uint256" },
+      { name: "isPermanent", type: "bool" },
     ],
     stateMutability: "view",
     type: "function",
