@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { RainbowKitProvider, lightTheme } from "@rainbow-me/rainbowkit";
-import { config, mezoTestnet } from "@/config/wagmi";
+import { config, mezoMainnet } from "@/config/wagmi";
 
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -30,7 +30,7 @@ export function Providers({ children }: ProvidersProps) {
         <RainbowKitProvider
           theme={yieldPulseTheme}
           modalSize="compact"
-          initialChain={mezoTestnet}
+          initialChain={mezoMainnet}
           appInfo={{
             appName: "Yield Pulse",
             learnMoreUrl: "https://github.com/mezo-org",

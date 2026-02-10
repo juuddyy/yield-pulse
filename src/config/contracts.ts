@@ -25,13 +25,28 @@ export const MEZO_TESTNET_CONTRACTS = {
   MEZOCaller: "0x7B7c000000000000000000000000000000000001" as const,
 } as const;
 
-// Mezo Mainnet Contract Addresses (for future use)
+// Mezo Mainnet Contract Addresses
+// Some addresses still need to be discovered - marked with TODO
 export const MEZO_MAINNET_CONTRACTS = {
   // Core Tokens
   BTC: "0x7b7C000000000000000000000000000000000000" as const,
   MUSD: "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186" as const,
 
-  // Pools
+  // Voting Escrow (Lock) Contracts - TODO: Need mainnet addresses
+  VeBTC: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
+  VeMEZO: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
+  Voter: "0x0000000000000000000000000000000000000000" as const,
+  BoostVoter: "0x0000000000000000000000000000000000000000" as const,
+
+  // Vaults & Savings - TODO: Need mainnet addresses
+  MUSDVault: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
+  MUSDSavingsRate: "0x0000000000000000000000000000000000000000" as const, // TODO: Get from mainnet
+
+  // DEX / Liquidity
+  Router: "0x0000000000000000000000000000000000000000" as const,
+  CLSwapRouter: "0x0000000000000000000000000000000000000000" as const,
+
+  // Pools (from docs)
   PoolFactory: "0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248" as const,
   MUSD_BTC_Pool: "0x52e604c44417233b6CcEDDDc0d640A405Caacefb" as const,
   MUSD_USDC_Pool: "0xEd812AEc0Fecc8fD882Ac3eccC43f3aA80A6c356" as const,
@@ -42,6 +57,10 @@ export const MEZO_MAINNET_CONTRACTS = {
   mcbBTC: "0x6a7CD8E1384d49f502b4A4CE9aC9eb320835c5d7" as const,
   mUSDC: "0x04671C72Aab5AC02A03c1098314b1BB6B560c197" as const,
   mUSDT: "0xeB5a5d39dE4Ea42C2Aa6A57EcA2894376683bB8E" as const,
+
+  // System Contracts
+  BTCCaller: "0x7b7C000000000000000000000000000000000000" as const,
+  MEZOCaller: "0x7B7c000000000000000000000000000000000001" as const,
 } as const;
 
 // Chain IDs
@@ -50,10 +69,39 @@ export const CHAIN_IDS = {
   MEZO_TESTNET: 31611,
 } as const;
 
+// Explorer URLs
+export const EXPLORER_URLS = {
+  [CHAIN_IDS.MEZO_MAINNET]: "https://explorer.mezo.org",
+  [CHAIN_IDS.MEZO_TESTNET]: "https://explorer.test.mezo.org",
+} as const;
+
 // Get contracts based on chain ID
-export function getContracts(chainId: number) {
+export function getContracts(chainId: number | undefined) {
   if (chainId === CHAIN_IDS.MEZO_TESTNET) {
     return MEZO_TESTNET_CONTRACTS;
   }
   return MEZO_MAINNET_CONTRACTS;
+}
+
+// Get explorer URL based on chain ID
+export function getExplorerUrl(chainId: number | undefined): string {
+  if (chainId === CHAIN_IDS.MEZO_TESTNET) {
+    return EXPLORER_URLS[CHAIN_IDS.MEZO_TESTNET];
+  }
+  return EXPLORER_URLS[CHAIN_IDS.MEZO_MAINNET];
+}
+
+// Get address explorer link
+export function getAddressUrl(chainId: number | undefined, address: string): string {
+  return `${getExplorerUrl(chainId)}/address/${address}`;
+}
+
+// Get transaction explorer link
+export function getTxUrl(chainId: number | undefined, txHash: string): string {
+  return `${getExplorerUrl(chainId)}/tx/${txHash}`;
+}
+
+// Check if a contract address is valid (not zero address)
+export function isValidContract(address: string): boolean {
+  return address !== "0x0000000000000000000000000000000000000000";
 }

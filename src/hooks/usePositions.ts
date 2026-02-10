@@ -2,7 +2,7 @@
 
 import { useAccount, useReadContracts, useBalance } from "wagmi";
 import { formatUnits } from "viem";
-import { MEZO_TESTNET_CONTRACTS, CHAIN_IDS } from "@/config/contracts";
+import { getContracts, CHAIN_IDS, isValidContract } from "@/config/contracts";
 import { ERC20_ABI, VOTING_ESCROW_ABI, VAULT_ABI } from "@/config/abis";
 
 // BTC price (in production, fetch from oracle or API)
@@ -40,6 +40,10 @@ export interface PortfolioData {
 
 export function usePositions(): PortfolioData {
   const { address, isConnected, chainId } = useAccount();
+  
+  // Get the appropriate contracts for the current chain
+  const contracts = getContracts(chainId);
+  const currentChainId = chainId || CHAIN_IDS.MEZO_MAINNET;
 
   // Get native BTC balance
   const { data: btcBalance } = useBalance({
@@ -51,85 +55,85 @@ export function usePositions(): PortfolioData {
     contracts: [
       // veBTC - try balanceOf (returns NFT count or voting power)
       {
-        address: MEZO_TESTNET_CONTRACTS.VeBTC,
+        address: contracts.VeBTC,
         abi: VOTING_ESCROW_ABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // veBTC - get first token ID (for NFT-based locks)
       {
-        address: MEZO_TESTNET_CONTRACTS.VeBTC,
+        address: contracts.VeBTC,
         abi: VOTING_ESCROW_ABI,
         functionName: "tokenOfOwnerByIndex",
         args: address ? [address, BigInt(0)] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // veMEZO - try balanceOf (returns NFT count or voting power)
       {
-        address: MEZO_TESTNET_CONTRACTS.VeMEZO,
+        address: contracts.VeMEZO,
         abi: VOTING_ESCROW_ABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // veMEZO - get first token ID (for NFT-based locks)
       {
-        address: MEZO_TESTNET_CONTRACTS.VeMEZO,
+        address: contracts.VeMEZO,
         abi: VOTING_ESCROW_ABI,
         functionName: "tokenOfOwnerByIndex",
         args: address ? [address, BigInt(0)] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // MUSD Vault shares
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSDVault,
+        address: contracts.MUSDVault,
         abi: VAULT_ABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // MUSD Vault - convert shares to assets
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSDVault,
+        address: contracts.MUSDVault,
         abi: VAULT_ABI,
         functionName: "totalAssets",
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSDVault,
+        address: contracts.MUSDVault,
         abi: VAULT_ABI,
         functionName: "totalSupply",
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // MUSD Savings Rate shares
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSDSavingsRate,
+        address: contracts.MUSDSavingsRate,
         abi: VAULT_ABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // MUSD Savings Rate - total assets
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSDSavingsRate,
+        address: contracts.MUSDSavingsRate,
         abi: VAULT_ABI,
         functionName: "totalAssets",
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSDSavingsRate,
+        address: contracts.MUSDSavingsRate,
         abi: VAULT_ABI,
         functionName: "totalSupply",
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
       // MUSD token balance
       {
-        address: MEZO_TESTNET_CONTRACTS.MUSD,
+        address: contracts.MUSD,
         abi: ERC20_ABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
     ],
     query: {
@@ -146,20 +150,20 @@ export function usePositions(): PortfolioData {
   const lockContracts: any[] = [];
   if (veBtcTokenId !== undefined) {
     lockContracts.push({
-      address: MEZO_TESTNET_CONTRACTS.VeBTC,
+      address: contracts.VeBTC,
       abi: VOTING_ESCROW_ABI,
       functionName: "locked",
       args: [veBtcTokenId],
-      chainId: CHAIN_IDS.MEZO_TESTNET,
+      chainId: currentChainId,
     });
   }
   if (veMezoTokenId !== undefined) {
     lockContracts.push({
-      address: MEZO_TESTNET_CONTRACTS.VeMEZO,
+      address: contracts.VeMEZO,
       abi: VOTING_ESCROW_ABI,
       functionName: "locked",
       args: [veMezoTokenId],
-      chainId: CHAIN_IDS.MEZO_TESTNET,
+      chainId: currentChainId,
     });
   }
 
@@ -167,10 +171,10 @@ export function usePositions(): PortfolioData {
     contracts: lockContracts.length > 0 ? lockContracts : [
       // Placeholder when no token IDs available
       {
-        address: MEZO_TESTNET_CONTRACTS.VeBTC,
+        address: contracts.VeBTC,
         abi: VOTING_ESCROW_ABI,
         functionName: "totalSupply",
-        chainId: CHAIN_IDS.MEZO_TESTNET,
+        chainId: currentChainId,
       },
     ],
     query: {
@@ -229,7 +233,7 @@ export function usePositions(): PortfolioData {
         pnlPercent: 0,
         apy: 15.8,
         token: "BTC",
-        contractAddress: MEZO_TESTNET_CONTRACTS.VeBTC,
+        contractAddress: contracts.VeBTC,
         unlockDate: veBtcLockEnd && veBtcLockEnd > BigInt(0) ? new Date(Number(veBtcLockEnd) * 1000) : undefined,
       });
     }
@@ -269,7 +273,7 @@ export function usePositions(): PortfolioData {
         pnlPercent: 0,
         apy: 0, // Boost multiplier, not direct APY
         token: "MEZO",
-        contractAddress: MEZO_TESTNET_CONTRACTS.VeMEZO,
+        contractAddress: contracts.VeMEZO,
         unlockDate: veMezoLockEnd && veMezoLockEnd > BigInt(0) ? new Date(Number(veMezoLockEnd) * 1000) : undefined,
       });
     }
@@ -305,7 +309,7 @@ export function usePositions(): PortfolioData {
         pnlPercent: pnlPercent,
         apy: 8.5, // Placeholder - fetch from vault
         token: "MUSD",
-        contractAddress: MEZO_TESTNET_CONTRACTS.MUSDVault,
+        contractAddress: contracts.MUSDVault,
       });
     }
 
@@ -350,7 +354,7 @@ export function usePositions(): PortfolioData {
         pnlPercent: pnlPercent,
         apy: 5.2, // DSR-style savings rate
         token: "MUSD",
-        contractAddress: MEZO_TESTNET_CONTRACTS.MUSDSavingsRate,
+        contractAddress: contracts.MUSDSavingsRate,
       });
     }
 
@@ -372,7 +376,7 @@ export function usePositions(): PortfolioData {
           pnlPercent: 0,
           apy: 0,
           token: "MUSD",
-          contractAddress: MEZO_TESTNET_CONTRACTS.MUSD,
+          contractAddress: contracts.MUSD,
         });
       }
     }
@@ -396,7 +400,7 @@ export function usePositions(): PortfolioData {
         pnlPercent: 0,
         apy: 0,
         token: "BTC",
-        contractAddress: MEZO_TESTNET_CONTRACTS.BTC,
+        contractAddress: contracts.BTC,
       });
     }
   }
