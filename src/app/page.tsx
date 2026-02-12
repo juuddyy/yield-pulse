@@ -153,7 +153,7 @@ function convertToPositionCard(pos: UserPosition) {
 // Dashboard for connected users
 function Dashboard() {
   const { isConnected, address, chain } = useAccount();
-  const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error } = usePositions();
+  const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error, btcPrice, btcPriceNote } = usePositions();
 
   // Use real data when connected (even if empty), mock data only when disconnected
   const useRealData = isConnected;
@@ -245,7 +245,7 @@ function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard
           label="Total Value"
           value={summary.totalValueUSD}
@@ -276,6 +276,16 @@ function Dashboard() {
           icon={<Activity className="h-5 w-5" />}
         />
       </div>
+      
+      {/* BTC Price Note */}
+      {useRealData && btcPrice && (
+        <div className="mb-8 p-3 rounded-lg bg-amber-50 border border-amber-200">
+          <p className="text-xs text-amber-800">
+            <span className="font-medium">Note:</span> USD values calculated using {btcPriceNote} (${btcPrice.toLocaleString()}/BTC). 
+            This is not the price at time of deposit - actual profit/loss may differ based on BTC price changes.
+          </p>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
