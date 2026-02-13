@@ -28,6 +28,7 @@ import {
 } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
 import { usePositions, type UserPosition } from "@/hooks/usePositions";
+import { TokenBalancesDebug } from "@/components/debug/token-balances";
 
 // Hero section for non-connected users
 function HeroSection() {
@@ -313,6 +314,20 @@ function Dashboard() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Debug Panel - Token Balances */}
+      {useRealData && (
+        <div className="mb-8">
+          <details className="group">
+            <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+              🔧 Debug: Show Raw Token Balances
+            </summary>
+            <div className="mt-4">
+              <TokenBalancesDebug />
+            </div>
+          </details>
         </div>
       )}
 

@@ -18,6 +18,7 @@ export const MEZO_TESTNET_CONTRACTS = {
   // Vaults & Savings
   MUSDVault: "0x44c8665fe06425Ca801f38DE39e71f61185E90AE" as const,
   MUSDSavingsRate: "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16" as const,
+  sMUSD: "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16" as const,
 
   // DEX / Liquidity
   Router: "0xD245BeC6836D85e159763a5D2BFcE7CBC3488e03" as const,
@@ -57,8 +58,10 @@ export const MEZO_MAINNET_CONTRACTS = {
   VeBTCRewardsDistributor: "0x535E01F948458E0b64F9dB2A01Da6F32E240140f" as const,
 
   // Vaults & Savings - MUSD Savings Rate Vault (sMUSD)
-  MUSDVault: "0x0000000000000000000000000000000000000000" as const, // August vault - need address
+  // Try multiple addresses - one of these should be the correct savings vault
+  MUSDVault: "0x753c48Cf1bF3f499DCBACcEBC18d07847D55B0F6" as const, // Potential August vault
   MUSDSavingsRate: "0xb4dc51cc95F115Be075f5190e4F56dBbf1628e36" as const, // MUSD Savings Rate Vault
+  sMUSD: "0xb4dc51cc95F115Be075f5190e4F56dBbf1628e36" as const, // sMUSD token (same as savings rate)
 
   // DEX / Liquidity - from mezo-org/tigris deployments/mainnet
   Router: "0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706" as const,
