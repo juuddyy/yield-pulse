@@ -153,7 +153,7 @@ function convertToPositionCard(pos: UserPosition) {
 // Dashboard for connected users
 function Dashboard() {
   const { isConnected, address, chain } = useAccount();
-  const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error, btcPrice, btcPriceNote } = usePositions();
+  const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error, btcPrice, btcPriceNote, btcChange24h, priceSource, totalRewardsPending } = usePositions();
 
   // Use real data when connected (even if empty), mock data only when disconnected
   const useRealData = isConnected;
@@ -277,13 +277,36 @@ function Dashboard() {
         />
       </div>
       
-      {/* BTC Price Note */}
+      {/* BTC Price Banner */}
       {useRealData && btcPrice && (
-        <div className="mb-8 p-3 rounded-lg bg-amber-50 border border-amber-200">
-          <p className="text-xs text-amber-800">
-            <span className="font-medium">Note:</span> USD values calculated using {btcPriceNote} (${btcPrice.toLocaleString()}/BTC). 
-            This is not the price at time of deposit - actual profit/loss may differ based on BTC price changes.
-          </p>
+        <div className="mb-8 p-4 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <span className="text-orange-600 font-bold text-sm">₿</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">BTC Price</p>
+                <p className="text-lg font-bold text-gray-900">${btcPrice.toLocaleString()}</p>
+              </div>
+              {btcChange24h !== 0 && (
+                <span className={`text-sm font-medium ${btcChange24h >= 0 ? 'text-profit' : 'text-loss'}`}>
+                  {btcChange24h >= 0 ? '↑' : '↓'} {Math.abs(btcChange24h).toFixed(2)}%
+                </span>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500">{btcPriceNote}</p>
+              <p className="text-xs text-gray-400">Source: {priceSource}</p>
+            </div>
+          </div>
+          {totalRewardsPending > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium text-profit">+${totalRewardsPending.toFixed(2)}</span> in pending rewards
+              </p>
+            </div>
+          )}
         </div>
       )}
 

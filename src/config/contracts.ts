@@ -12,6 +12,9 @@ export const MEZO_TESTNET_CONTRACTS = {
   Voter: "0x263F1Fd5fB7F866881e1B6cD7d5d6c40Fd985F0D" as const,
   BoostVoter: "0x21d7bDF5a5929AD179F8cA0c9014A0B62ae6Bfd1" as const,
 
+  // Rewards Distribution
+  VeBTCRewardsDistributor: "0x0000000000000000000000000000000000000000" as const, // Testnet - need address
+
   // Vaults & Savings
   MUSDVault: "0x44c8665fe06425Ca801f38DE39e71f61185E90AE" as const,
   MUSDSavingsRate: "0x6f461c68B2c5492C0F5CCEc5a264d692aA7A8e16" as const,
@@ -38,7 +41,7 @@ export const MEZO_TESTNET_CONTRACTS = {
 } as const;
 
 // Mezo Mainnet Contract Addresses
-// Extracted from official mezo-org/tigris GitHub repository
+// Extracted from official mezo-org/tigris GitHub repository and Mezo docs
 export const MEZO_MAINNET_CONTRACTS = {
   // Core Tokens
   BTC: "0x7b7C000000000000000000000000000000000000" as const,
@@ -50,17 +53,20 @@ export const MEZO_MAINNET_CONTRACTS = {
   Voter: "0x3A4a6919F70e5b0aA32401747C471eCfe2322C1b" as const, // VeBTCVoter
   BoostVoter: "0x0000000000000000000000000000000000000000" as const, // Not deployed yet
 
-  // Vaults & Savings - TODO: Need to find mainnet addresses
-  MUSDVault: "0x0000000000000000000000000000000000000000" as const,
-  MUSDSavingsRate: "0x0000000000000000000000000000000000000000" as const,
+  // Rewards Distribution
+  VeBTCRewardsDistributor: "0x535E01F948458E0b64F9dB2A01Da6F32E240140f" as const,
+
+  // Vaults & Savings - MUSD Savings Rate Vault (sMUSD)
+  MUSDVault: "0x0000000000000000000000000000000000000000" as const, // August vault - need address
+  MUSDSavingsRate: "0xb4dc51cc95F115Be075f5190e4F56dBbf1628e36" as const, // MUSD Savings Rate Vault
 
   // DEX / Liquidity - from mezo-org/tigris deployments/mainnet
   Router: "0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706" as const,
   CLSwapRouter: "0x0000000000000000000000000000000000000000" as const,
 
-  // Pools (from docs)
+  // Pools (from docs) - vAMM style pools
   PoolFactory: "0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248" as const,
-  MUSD_BTC_Pool: "0x52e604c44417233b6CcEDDDc0d640A405Caacefb" as const,
+  MUSD_BTC_Pool: "0x52e604c44417233b6CcEDDDc0d640A405Caacefb" as const, // vAMM-BTC/MUSD
   MUSD_USDC_Pool: "0xEd812AEc0Fecc8fD882Ac3eccC43f3aA80A6c356" as const,
   MUSD_USDT_Pool: "0x10906a9E9215939561597b4C8e4b98F93c02031A" as const,
   cbBTC_BTC_Pool: "0x72E6b3F126cF4F6C90C08114aC29038A0E269210" as const,

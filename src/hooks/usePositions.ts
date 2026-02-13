@@ -3,19 +3,11 @@
 import { useAccount, useReadContracts, useBalance } from "wagmi";
 import { formatUnits } from "viem";
 import { getContracts, CHAIN_IDS, isValidContract } from "@/config/contracts";
-import { ERC20_ABI, VOTING_ESCROW_ABI, VAULT_ABI, LP_POOL_ABI } from "@/config/abis";
+import { ERC20_ABI, VOTING_ESCROW_ABI, VAULT_ABI, LP_POOL_ABI, GAUGE_ABI } from "@/config/abis";
+import { useBTCPrice } from "@/lib/price-service";
 
-// BTC price - using CoinGecko estimate (in production, fetch from oracle or API)
-// Note: This is an estimated current price, not the price at time of deposit
-const BTC_PRICE_USD = 104000; // Updated estimate - should be fetched dynamically
-const MUSD_PRICE_USD = 1; // MUSD is a stablecoin
-
-// Export price info for UI display
-export const PRICE_INFO = {
-  btcPrice: BTC_PRICE_USD,
-  btcPriceNote: "Estimated current BTC price",
-  lastUpdated: new Date().toISOString().split('T')[0],
-};
+// MUSD is a stablecoin pegged to $1
+const MUSD_PRICE_USD = 1;
 
 export interface UserPosition {
   id: string;
@@ -32,24 +24,46 @@ export interface UserPosition {
   token: string;
   contractAddress: string;
   unlockDate?: Date;
+  rewards?: {
+    pending: number;
+    token: string;
+  };
 }
 
 export interface PortfolioData {
   totalValue: number;
-  totalValueBTC: number; // Total value in BTC terms
+  totalValueBTC: number;
   totalDeposited: number;
-  totalDepositedBTC: number; // Total deposited in BTC terms
+  totalDepositedBTC: number;
   totalPnL: number;
   pnlPercent: number;
   positions: UserPosition[];
   isLoading: boolean;
   error: Error | null;
-  btcPrice: number; // Current BTC price used for calculations
-  btcPriceNote: string; // Note about the price source
+  btcPrice: number;
+  btcPriceNote: string;
+  btcChange24h: number;
+  priceSource: string;
+  totalRewardsPending: number;
 }
+
+// Rewards Distributor ABI
+const REWARDS_DISTRIBUTOR_ABI = [
+  {
+    inputs: [{ name: "_tokenId", type: "uint256" }],
+    name: "claimable",
+    outputs: [{ name: "claimable_", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 export function usePositions(): PortfolioData {
   const { address, isConnected, chainId } = useAccount();
+  const { price: btcPriceData, isLoading: isPriceLoading } = useBTCPrice();
+  
+  // Use live BTC price, fallback to estimate
+  const BTC_PRICE_USD = btcPriceData?.btc || 104000;
   
   // Get the appropriate contracts for the current chain
   const contracts = getContracts(chainId);
@@ -60,6 +74,7 @@ export function usePositions(): PortfolioData {
   const hasVeMEZO = isValidContract(contracts.VeMEZO);
   const hasMUSDVault = isValidContract(contracts.MUSDVault);
   const hasMUSDSavings = isValidContract(contracts.MUSDSavingsRate);
+  const hasRewardsDistributor = isValidContract(contracts.VeBTCRewardsDistributor || "0x0000000000000000000000000000000000000000");
 
   // Get native BTC balance
   const { data: btcBalance } = useBalance({
@@ -85,6 +100,7 @@ export function usePositions(): PortfolioData {
     musdBalance: -1,
     musdBtcPoolBalance: -1,
     musdBtcPoolSupply: -1,
+    musdBtcPoolReserves: -1,
     musdUsdcPoolBalance: -1,
     musdUsdcPoolSupply: -1,
   };
@@ -191,7 +207,7 @@ export function usePositions(): PortfolioData {
     chainId: currentChainId,
   });
 
-  // LP Pool positions - MUSD/BTC Pool
+  // LP Pool positions - MUSD/BTC Pool (vAMM-BTC/MUSD)
   if (isValidContract(contracts.MUSD_BTC_Pool)) {
     indices.musdBtcPoolBalance = contractCalls.length;
     contractCalls.push({
@@ -206,6 +222,13 @@ export function usePositions(): PortfolioData {
       address: contracts.MUSD_BTC_Pool,
       abi: LP_POOL_ABI,
       functionName: "totalSupply",
+      chainId: currentChainId,
+    });
+    indices.musdBtcPoolReserves = contractCalls.length;
+    contractCalls.push({
+      address: contracts.MUSD_BTC_Pool,
+      abi: LP_POOL_ABI,
+      functionName: "getReserves",
       chainId: currentChainId,
     });
   }
@@ -252,6 +275,7 @@ export function usePositions(): PortfolioData {
   const lockContracts: any[] = [];
   let veBtcLockIdx = -1;
   let veMezoLockIdx = -1;
+  let veBtcRewardsIdx = -1;
   
   if (hasVeBTC && veBtcTokenId !== undefined) {
     veBtcLockIdx = lockContracts.length;
@@ -262,6 +286,18 @@ export function usePositions(): PortfolioData {
       args: [veBtcTokenId],
       chainId: currentChainId,
     });
+    
+    // Also get claimable rewards if distributor exists
+    if (hasRewardsDistributor && contracts.VeBTCRewardsDistributor) {
+      veBtcRewardsIdx = lockContracts.length;
+      lockContracts.push({
+        address: contracts.VeBTCRewardsDistributor,
+        abi: REWARDS_DISTRIBUTOR_ABI,
+        functionName: "claimable",
+        args: [veBtcTokenId],
+        chainId: currentChainId,
+      });
+    }
   }
   if (hasVeMEZO && veMezoTokenId !== undefined) {
     veMezoLockIdx = lockContracts.length;
@@ -291,10 +327,12 @@ export function usePositions(): PortfolioData {
 
   // Process the data into positions
   const positions: UserPosition[] = [];
+  let totalRewardsPending = 0;
 
   // Debug: log raw data to console
   if (typeof window !== 'undefined') {
     console.log('Chain ID:', currentChainId);
+    console.log('BTC Price:', BTC_PRICE_USD);
     console.log('Contract indices:', indices);
     console.log('Initial contract data:', data);
     console.log('veBTC token ID:', veBtcTokenId?.toString());
@@ -325,12 +363,22 @@ export function usePositions(): PortfolioData {
         }
       }
       
+      // Get claimable rewards
+      let veBtcRewards = BigInt(0);
+      if (veBtcRewardsIdx >= 0 && lockDataArray?.[veBtcRewardsIdx]?.result) {
+        veBtcRewards = lockDataArray[veBtcRewardsIdx].result as bigint;
+      }
+      
       // Only show if we have actual locked amount (not just NFT count)
       if (veBtcNftCount && veBtcNftCount > BigInt(0) && veBtcLockedAmount && veBtcLockedAmount > BigInt(0)) {
         // Handle potential int128 (could be stored as negative in some implementations)
         const rawAmount = veBtcLockedAmount < BigInt(0) ? -veBtcLockedAmount : veBtcLockedAmount;
         const amount = parseFloat(formatUnits(rawAmount, 18));
         const value = amount * BTC_PRICE_USD;
+        const rewardsAmount = parseFloat(formatUnits(veBtcRewards, 18));
+        const rewardsValue = rewardsAmount * BTC_PRICE_USD;
+        totalRewardsPending += rewardsValue;
+        
         positions.push({
           id: "vebtc-lock",
           name: "veBTC Lock",
@@ -340,12 +388,13 @@ export function usePositions(): PortfolioData {
           depositedValue: value,
           currentAmount: amount.toFixed(6),
           currentValue: value,
-          pnl: 0,
-          pnlPercent: 0,
+          pnl: rewardsValue, // Rewards are the PnL for locks
+          pnlPercent: value > 0 ? (rewardsValue / value) * 100 : 0,
           apy: 15.8,
           token: "BTC",
           contractAddress: contracts.VeBTC,
           unlockDate: veBtcLockEnd && veBtcLockEnd > BigInt(0) ? new Date(Number(veBtcLockEnd) * 1000) : undefined,
+          rewards: rewardsAmount > 0 ? { pending: rewardsAmount, token: "BTC" } : undefined,
         });
       }
     }
@@ -413,7 +462,7 @@ export function usePositions(): PortfolioData {
 
         positions.push({
           id: "musd-vault",
-          name: "MUSD Core Vault",
+          name: "MUSD Core Vault (August)",
           protocol: "Mezo",
           type: "vault",
           depositedAmount: shares.toFixed(2),
@@ -456,7 +505,7 @@ export function usePositions(): PortfolioData {
 
         positions.push({
           id: "musd-savings",
-          name: "MUSD Savings Rate (sMUSD)",
+          name: "MUSD Savings Rate Vault (sMUSD)",
           protocol: "Mezo",
           type: "savings",
           depositedAmount: shares.toFixed(2),
@@ -465,8 +514,8 @@ export function usePositions(): PortfolioData {
           currentValue: value,
           pnl: pnl,
           pnlPercent: pnlPercent,
-          apy: 5.2, // DSR-style savings rate
-          token: "MUSD",
+          apy: 26.69, // From user screenshot
+          token: "sMUSD",
           contractAddress: contracts.MUSDSavingsRate,
         });
       }
@@ -497,26 +546,47 @@ export function usePositions(): PortfolioData {
       }
     }
 
-    // LP Pool - MUSD/BTC
+    // LP Pool - MUSD/BTC (vAMM-BTC/MUSD)
     if (indices.musdBtcPoolBalance >= 0) {
       const lpBalance = data[indices.musdBtcPoolBalance]?.result as bigint | undefined;
       const lpSupply = indices.musdBtcPoolSupply >= 0 ? data[indices.musdBtcPoolSupply]?.result as bigint | undefined : undefined;
+      const reserves = indices.musdBtcPoolReserves >= 0 ? data[indices.musdBtcPoolReserves]?.result as [bigint, bigint, number] | undefined : undefined;
       
       if (lpBalance && lpBalance > BigInt(0)) {
         const amount = parseFloat(formatUnits(lpBalance, 18));
-        // Estimate LP value (simplified - in production, calculate from reserves)
-        const estimatedValue = amount * 2; // Rough estimate
+        
+        // Calculate LP value from reserves
+        let estimatedValue = 0;
+        let btcShare = 0;
+        let musdShare = 0;
+        
+        if (reserves && lpSupply && lpSupply > BigInt(0)) {
+          const reserve0 = parseFloat(formatUnits(reserves[0], 18)); // BTC or MUSD
+          const reserve1 = parseFloat(formatUnits(reserves[1], 18)); // BTC or MUSD
+          const totalSupply = parseFloat(formatUnits(lpSupply, 18));
+          const shareRatio = amount / totalSupply;
+          
+          // Assuming reserve0 is BTC, reserve1 is MUSD (verify from pool)
+          btcShare = reserve0 * shareRatio;
+          musdShare = reserve1 * shareRatio;
+          
+          // Value = BTC value + MUSD value
+          estimatedValue = (btcShare * BTC_PRICE_USD) + (musdShare * MUSD_PRICE_USD);
+        } else {
+          // Fallback: rough estimate
+          estimatedValue = amount * 500; // Placeholder
+        }
         
         positions.push({
           id: "lp-musd-btc",
-          name: "MUSD/BTC Pool LP",
+          name: "BTC/MUSD Pool LP",
           protocol: "Mezo DEX",
           type: "lp",
-          depositedAmount: amount.toFixed(6),
+          depositedAmount: `${amount.toFixed(6)} LP`,
           depositedValue: estimatedValue,
-          currentAmount: amount.toFixed(6),
+          currentAmount: btcShare > 0 ? `${btcShare.toFixed(6)} BTC / ${musdShare.toFixed(2)} MUSD` : `${amount.toFixed(6)} LP`,
           currentValue: estimatedValue,
-          pnl: 0,
+          pnl: 0, // Need historical data to calculate
           pnlPercent: 0,
           apy: 12.5, // Placeholder
           token: "LP",
@@ -579,7 +649,7 @@ export function usePositions(): PortfolioData {
   // Calculate totals
   const totalValue = positions.reduce((sum, p) => sum + p.currentValue, 0);
   const totalDeposited = positions.reduce((sum, p) => sum + p.depositedValue, 0);
-  const totalPnL = totalValue - totalDeposited;
+  const totalPnL = totalValue - totalDeposited + totalRewardsPending;
   const pnlPercent = totalDeposited > 0 ? (totalPnL / totalDeposited) * 100 : 0;
   
   // Calculate BTC equivalents
@@ -594,10 +664,13 @@ export function usePositions(): PortfolioData {
     totalPnL,
     pnlPercent,
     positions,
-    isLoading: isLoading || isLoadingLocks,
+    isLoading: isLoading || isLoadingLocks || isPriceLoading,
     error: error as Error | null,
     btcPrice: BTC_PRICE_USD,
-    btcPriceNote: PRICE_INFO.btcPriceNote,
+    btcPriceNote: btcPriceData?.source === 'CoinGecko' ? 'Live price from CoinGecko' : 'Estimated price',
+    btcChange24h: btcPriceData?.btcChange24h || 0,
+    priceSource: btcPriceData?.source || 'Fallback',
+    totalRewardsPending,
   };
 }
 
@@ -613,5 +686,6 @@ export function usePortfolioSummary() {
     positionCount: portfolio.positions.length,
     isLoading: portfolio.isLoading,
     error: portfolio.error,
+    btcPrice: portfolio.btcPrice,
   };
 }
