@@ -6,15 +6,27 @@ export interface Position {
   poolName: string;
   poolType: PoolType;
   depositedAmount: number;
-  depositedAmountUSD: number;
+  depositedAmountUSD: number; // USD value at time of deposit (historical)
   currentAmount: number;
-  currentAmountUSD: number;
-  pnl: number;
+  currentAmountUSD: number; // USD value at current prices
+  pnl: number; // Total profit/loss
   pnlPercentage: number;
   apy: number;
   depositDate?: Date; // Optional - may not be available from blockchain
+  unlockDate?: Date; // For locked positions
   tokenSymbol: string;
   tokenIcon?: string;
+  // Enhanced reward tracking
+  rewards?: {
+    pendingAmount: number;
+    pendingUSD: number;
+    claimedAmount?: number;
+    claimedUSD?: number;
+    rewardToken: string;
+  };
+  // Price context
+  priceAtDeposit?: number; // BTC/token price when deposited
+  currentPrice?: number; // Current BTC/token price
 }
 
 export interface Protocol {

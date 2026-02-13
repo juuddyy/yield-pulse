@@ -146,7 +146,13 @@ function convertToPositionCard(pos: UserPosition) {
     apy: pos.apy,
     tokenSymbol: pos.token,
     tokenIcon: pos.token === "BTC" ? "/btc-logo.png" : "/musd-logo.png",
-    depositDate: pos.unlockDate || undefined, // Use unlock date if available, otherwise undefined
+    unlockDate: pos.unlockDate || undefined, // Use unlock date for locked positions
+    // Pass rewards if available
+    rewards: pos.rewards ? {
+      pendingAmount: pos.rewards.pending,
+      pendingUSD: pos.rewards.pending * (pos.rewards.token === 'BTC' ? 104000 : 1), // Use estimated price
+      rewardToken: pos.rewards.token,
+    } : undefined,
   };
 }
 
