@@ -29,6 +29,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { usePositions, type UserPosition } from "@/hooks/usePositions";
 import { TokenBalancesDebug } from "@/components/debug/token-balances";
+import { PoolDiscoveryDebug } from "@/components/debug/pool-discovery";
 
 // Hero section for non-connected users
 function HeroSection() {
@@ -317,15 +318,24 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Debug Panel - Token Balances */}
+      {/* Debug Panel - Token Balances & Pool Discovery */}
       {useRealData && (
-        <div className="mb-8">
+        <div className="mb-8 space-y-4">
           <details className="group">
             <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
               🔧 Debug: Show Raw Token Balances
             </summary>
             <div className="mt-4">
               <TokenBalancesDebug />
+            </div>
+          </details>
+          
+          <details className="group">
+            <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+              🔍 Debug: Dynamic Pool Discovery (Auto-discovers ALL pools)
+            </summary>
+            <div className="mt-4">
+              <PoolDiscoveryDebug />
             </div>
           </details>
         </div>
