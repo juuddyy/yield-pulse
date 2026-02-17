@@ -58,7 +58,7 @@ export const MEZO_MAINNET_CONTRACTS = {
   VeBTCRewardsDistributor: "0x535E01F948458E0b64F9dB2A01Da6F32E240140f" as const,
 
   // Vaults & Savings - MUSD Savings Rate Vault (sMUSD)
-  MUSDVault: "0x0000000000000000000000000000000000000000" as const, // Disabled - invalid contract
+  MUSDVault: "0x221B2D9aD7B994861Af3f4c8A80c86C4aa86Bf53" as const, // August Vault
   MUSDSavingsRate: "0xb4D498029af77680cD1eF828b967f010d06C51CC" as const, // MUSD Savings Rate Vault (sMUSD)
   sMUSD: "0xb4D498029af77680cD1eF828b967f010d06C51CC" as const, // sMUSD token
 
