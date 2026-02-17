@@ -9,7 +9,7 @@ import {
   rainbowWallet,
   trustWallet,
 } from "@rainbow-me/rainbowkit/wallets";
-import { createConfig, http } from "wagmi";
+import { createConfig, http, fallback } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 
 // Mezo Mainnet Configuration (from official docs)
@@ -84,8 +84,23 @@ export const config = createConfig({
   // Mezo Mainnet first for production, then Testnet for testing
   chains: [mezoMainnet, mezoTestnet, mainnet, sepolia],
   transports: {
-    [mezoMainnet.id]: http("https://rpc-http.mezo.boar.network"),
-    [mezoTestnet.id]: http("https://rpc.test.mezo.org"),
+    // Use fallback RPCs to avoid rate limiting
+    [mezoMainnet.id]: fallback([
+      http("https://mezo.drpc.org", { 
+        batch: { wait: 100 }, // Batch requests with 100ms delay
+        retryCount: 3,
+        retryDelay: 1000,
+      }),
+      http("https://rpc-http.mezo.boar.network", {
+        batch: { wait: 100 },
+        retryCount: 2,
+        retryDelay: 2000,
+      }),
+    ]),
+    [mezoTestnet.id]: http("https://rpc.test.mezo.org", {
+      batch: { wait: 100 },
+      retryCount: 3,
+    }),
     [mainnet.id]: http(),
     [sepolia.id]: http(),
   },
