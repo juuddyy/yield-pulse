@@ -185,7 +185,7 @@ export function TokenBalancesDebug() {
     },
   });
 
-  // VE Lock contract calls (NFT-based)
+  // VE Lock contract calls (NFT-based) - try multiple function signatures
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const veLockCalls: any[] = veLocksToCheck.flatMap(ve => [
     // balanceOf (returns NFT count)
@@ -196,12 +196,28 @@ export function TokenBalancesDebug() {
       args: address ? [address] : undefined,
       chainId: currentChainId,
     },
-    // tokenOfOwnerByIndex (get first token ID)
+    // tokenOfOwnerByIndex (get first token ID) - standard ERC721Enumerable
     {
       address: ve.address as `0x${string}`,
       abi: VOTING_ESCROW_ABI,
       functionName: "tokenOfOwnerByIndex",
       args: address ? [address, BigInt(0)] : undefined,
+      chainId: currentChainId,
+    },
+    // ownerToNFTokenIdList (alternative way to get token ID) - Solidly style
+    {
+      address: ve.address as `0x${string}`,
+      abi: VOTING_ESCROW_ABI,
+      functionName: "ownerToNFTokenIdList",
+      args: address ? [address, BigInt(0)] : undefined,
+      chainId: currentChainId,
+    },
+    // balanceOfNFT (alternative NFT balance check)
+    {
+      address: ve.address as `0x${string}`,
+      abi: VOTING_ESCROW_ABI,
+      functionName: "balanceOfNFT",
+      args: address ? [address] : undefined,
       chainId: currentChainId,
     },
   ]);
@@ -213,9 +229,17 @@ export function TokenBalancesDebug() {
     },
   });
 
-  // Extract token IDs for second batch
-  const veBtcTokenId = hasVeBTC && veData?.[1]?.result ? veData[1].result as bigint : undefined;
-  const veMezoTokenId = hasVeMEZO && veData?.[3]?.result ? veData[3].result as bigint : undefined;
+  // Extract token IDs for second batch - try both methods (indices updated: 4 calls per VE)
+  // For veBTC: index 1 = tokenOfOwnerByIndex, index 2 = ownerToNFTokenIdList
+  const veBtcTokenId = hasVeBTC ? (
+    veData?.[1]?.result as bigint | undefined ?? 
+    veData?.[2]?.result as bigint | undefined
+  ) : undefined;
+  // For veMEZO: index 5 = tokenOfOwnerByIndex, index 6 = ownerToNFTokenIdList  
+  const veMezoTokenId = hasVeMEZO ? (
+    veData?.[5]?.result as bigint | undefined ?? 
+    veData?.[6]?.result as bigint | undefined
+  ) : undefined;
 
   // Second batch: Get locked() data using token IDs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,14 +270,27 @@ export function TokenBalancesDebug() {
     },
   });
 
-  // Process VE lock info
-  const veLockInfos: VeLockInfo[] = veLocksToCheck.map((ve, idx) => {
-    const baseIdx = idx * 2;
+  // Process VE lock info - now with 4 calls per lock
+  const veLockInfos: (VeLockInfo & { 
+    altTokenId?: string; 
+    nftBalance?: string;
+    tokenIdError?: string;
+    altTokenIdError?: string;
+    nftBalanceError?: string;
+  })[] = veLocksToCheck.map((ve, idx) => {
+    const baseIdx = idx * 4; // 4 calls per VE contract now
     const nftCountResult = veData?.[baseIdx];
     const tokenIdResult = veData?.[baseIdx + 1];
+    const altTokenIdResult = veData?.[baseIdx + 2]; // ownerToNFTokenIdList
+    const nftBalanceResult = veData?.[baseIdx + 3]; // balanceOfNFT
 
     const nftCount = nftCountResult?.result as bigint | undefined;
     const tokenId = tokenIdResult?.result as bigint | undefined;
+    const altTokenId = altTokenIdResult?.result as bigint | undefined;
+    const nftBalance = nftBalanceResult?.result as bigint | undefined;
+
+    // Use whichever token ID we found
+    const finalTokenId = tokenId ?? altTokenId;
 
     // Get lock data from second batch
     let lockedAmount: string | undefined;
@@ -266,7 +303,7 @@ export function TokenBalancesDebug() {
                    -1;
 
     if (lockIdx >= 0 && lockData?.[lockIdx]?.result) {
-      const locked = lockData[lockIdx].result as [bigint, bigint] | { amount: bigint; end: bigint };
+      const locked = lockData[lockIdx].result as [bigint, bigint] | [bigint, bigint, boolean] | { amount: bigint; end: bigint };
       if (Array.isArray(locked)) {
         const rawAmount = locked[0] < BigInt(0) ? -locked[0] : locked[0];
         lockedAmount = formatUnits(rawAmount, 18);
@@ -288,11 +325,16 @@ export function TokenBalancesDebug() {
       address: ve.address,
       name: ve.name,
       nftCount: nftCount !== undefined ? Number(nftCount) : undefined,
-      tokenId: tokenId?.toString(),
+      tokenId: finalTokenId?.toString(),
+      altTokenId: altTokenId?.toString(),
+      nftBalance: nftBalance?.toString(),
       lockedAmount,
       lockEnd,
       lockEndDate,
-      error: nftCountResult?.error?.message || tokenIdResult?.error?.message,
+      error: nftCountResult?.error?.message,
+      tokenIdError: tokenIdResult?.error?.message,
+      altTokenIdError: altTokenIdResult?.error?.message,
+      nftBalanceError: nftBalanceResult?.error?.message,
     };
   });
 
@@ -400,41 +442,62 @@ export function TokenBalancesDebug() {
                 <p className="text-pink-300 font-bold">{ve.name}</p>
                 <p className="text-gray-400 text-xs break-all">{ve.address}</p>
                 
-                {ve.error ? (
-                  <p className="text-red-400">Error: {ve.error}</p>
-                ) : (
-                  <>
+                {/* Show all debug info */}
+                <div className="mt-2 space-y-1">
+                  <p>
+                    <span className="text-gray-400">balanceOf:</span>{" "}
+                    {ve.error ? (
+                      <span className="text-red-400">{ve.error}</span>
+                    ) : (
+                      <span className="text-cyan-400">{ve.nftCount ?? "null"}</span>
+                    )}
+                  </p>
+                  
+                  <p>
+                    <span className="text-gray-400">tokenOfOwnerByIndex:</span>{" "}
+                    {ve.tokenIdError ? (
+                      <span className="text-red-400 text-xs">{ve.tokenIdError}</span>
+                    ) : (
+                      <span className="text-yellow-400">{ve.tokenId ?? "null"}</span>
+                    )}
+                  </p>
+                  
+                  <p>
+                    <span className="text-gray-400">ownerToNFTokenIdList:</span>{" "}
+                    {ve.altTokenIdError ? (
+                      <span className="text-red-400 text-xs">{ve.altTokenIdError}</span>
+                    ) : (
+                      <span className="text-yellow-400">{ve.altTokenId ?? "null"}</span>
+                    )}
+                  </p>
+                  
+                  <p>
+                    <span className="text-gray-400">balanceOfNFT:</span>{" "}
+                    {ve.nftBalanceError ? (
+                      <span className="text-red-400 text-xs">{ve.nftBalanceError}</span>
+                    ) : (
+                      <span className="text-cyan-400">{ve.nftBalance ?? "null"}</span>
+                    )}
+                  </p>
+                  
+                  {ve.lockedAmount && (
                     <p>
-                      <span className="text-gray-400">NFT Count:</span>{" "}
-                      <span className="text-cyan-400">{ve.nftCount ?? "0"}</span>
+                      <span className="text-gray-400">locked():</span>{" "}
+                      <span className="text-green-400">{ve.lockedAmount} BTC</span>
+                      {ve.lockEndDate && (
+                        <span className="text-orange-400 ml-2">→ {ve.lockEndDate}</span>
+                      )}
                     </p>
-                    {ve.tokenId && (
-                      <p>
-                        <span className="text-gray-400">Token ID:</span>{" "}
-                        <span className="text-yellow-400">{ve.tokenId}</span>
-                      </p>
-                    )}
-                    {ve.lockedAmount && (
-                      <p>
-                        <span className="text-gray-400">Locked Amount:</span>{" "}
-                        <span className="text-green-400">{ve.lockedAmount}</span>{" "}
-                        <span className="text-gray-500">BTC</span>
-                      </p>
-                    )}
-                    {ve.lockEndDate && (
-                      <p>
-                        <span className="text-gray-400">Unlock Date:</span>{" "}
-                        <span className="text-orange-400">{ve.lockEndDate}</span>
-                      </p>
-                    )}
-                    {ve.nftCount === 0 && (
-                      <p className="text-gray-500 italic">No lock found for this wallet</p>
-                    )}
-                    {ve.nftCount && ve.nftCount > 0 && !ve.lockedAmount && (
-                      <p className="text-yellow-500">Has NFT but waiting for lock data...</p>
-                    )}
-                  </>
-                )}
+                  )}
+                  
+                  {ve.nftCount === 0 && !ve.error && (
+                    <p className="text-gray-500 italic mt-2">No veBTC NFT found for this wallet</p>
+                  )}
+                  
+                  {ve.nftCount && ve.nftCount > 0 && !ve.lockedAmount && (
+                    <p className="text-yellow-500 mt-2">⏳ Has {ve.nftCount} NFT(s) - fetching lock data...</p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
