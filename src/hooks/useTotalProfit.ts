@@ -18,7 +18,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePublicClient, useReadContracts } from "wagmi";
 import { useAccount } from "wagmi";
 import { formatUnits, parseAbiItem, zeroAddress } from "viem";
-import { MEZO_MAINNET_CONTRACTS, CHAIN_IDS } from "@/config/contracts";
+import { getContracts, CHAIN_IDS } from "@/config/contracts";
 import { VOTING_ESCROW_ABI, VAULT_ABI } from "@/config/abis";
 import { useBTCPrice } from "@/lib/price-service";
 
@@ -43,9 +43,14 @@ const VEBTC_CLAIMED = parseAbiItem(
     "event Claimed(address indexed to, uint256 tokenId, uint256 amount)"
 );
 
-/** Gauge reward paid – for LP pool rewards (Velodrome-style) */
-const GAUGE_REWARD_PAID = parseAbiItem(
-    "event RewardPaid(address indexed user, uint256 reward)"
+/** Gauge/savings vault rewards claimed – Velodrome-style ClaimRewards event */
+const GAUGE_CLAIM_REWARDS = parseAbiItem(
+    "event ClaimRewards(address indexed from, uint256 amount)"
+);
+
+/** Voting reward contracts (FeesVotingReward / BribeVotingReward) – 3-parameter version */
+const VOTING_REWARD_CLAIM = parseAbiItem(
+    "event ClaimRewards(address indexed from, address indexed reward, uint256 amount)"
 );
 
 // ─── Mini ABIs ────────────────────────────────────────────────────────────────
@@ -65,6 +70,30 @@ const GAUGE_ABI_MINI = [
         inputs: [{ name: "account", type: "address" }],
         name: "earned",
         outputs: [{ name: "", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
+    },
+] as const;
+
+const VOTER_ABI_MINI = [
+    {
+        inputs: [{ name: "pool", type: "address" }],
+        name: "gauges",
+        outputs: [{ name: "", type: "address" }],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [{ name: "_gauge", type: "address" }],
+        name: "gaugeToFees",
+        outputs: [{ name: "", type: "address" }],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [{ name: "_gauge", type: "address" }],
+        name: "gaugeToBribe",
+        outputs: [{ name: "", type: "address" }],
         stateMutability: "view",
         type: "function",
     },
@@ -96,11 +125,19 @@ export interface TotalProfitBreakdown {
     savingsDeposited: number;
     savingsWithdrawn: number;
     savingsCurrentValue: number;
+    /** Pending claimable MUSD from sMUSD gauge rewards (earned but not claimed) */
+    savingsEarnedUSD: number;
+    /** Previously claimed MUSD gauge rewards from sMUSD vault */
+    savingsClaimedUSD: number;
 
     // ── LP Gauge rewards ──
     gaugePendingUSD: number;
     gaugeClaimedUSD: number;
     gaugeTotalUSD: number;
+
+    // ── Voting rewards (from voting with veBTC on gauges) ──
+    /** MUSD/BTC claimed from FeesVotingReward + BribeVotingReward contracts */
+    votingRewardClaimedUSD: number;
 
     isLoading: boolean;
     error: Error | null;
@@ -120,9 +157,12 @@ const INITIAL: TotalProfitBreakdown = {
     savingsDeposited: 0,
     savingsWithdrawn: 0,
     savingsCurrentValue: 0,
+    savingsEarnedUSD: 0,
+    savingsClaimedUSD: 0,
     gaugePendingUSD: 0,
     gaugeClaimedUSD: 0,
     gaugeTotalUSD: 0,
+    votingRewardClaimedUSD: 0,
     isLoading: false,
     error: null,
     lastUpdated: null,
@@ -161,8 +201,9 @@ function sumLogs(logs: { args?: Record<string, bigint | string | unknown> }[], f
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useTotalProfit(): TotalProfitBreakdown {
-    const { address, isConnected } = useAccount();
-    const publicClient = usePublicClient({ chainId: CHAIN_IDS.MEZO_MAINNET });
+    const { address, isConnected, chainId } = useAccount();
+    const targetChainId = chainId || CHAIN_IDS.MEZO_MAINNET;
+    const publicClient = usePublicClient({ chainId: targetChainId });
     const { price: priceData } = useBTCPrice();
     const btcPrice = priceData?.btc || 104_000;
 
@@ -177,7 +218,7 @@ export function useTotalProfit(): TotalProfitBreakdown {
         setData((prev) => ({ ...prev, isLoading: true, error: null }));
 
         try {
-            const c = MEZO_MAINNET_CONTRACTS;
+            const c = getContracts(targetChainId);
             const user = address.toLowerCase() as `0x${string}`;
 
             // ── Parallel: fetch all event logs for the connected wallet from block 0 ──
@@ -189,6 +230,7 @@ export function useTotalProfit(): TotalProfitBreakdown {
                 veBtcClaimedLogs,
                 musdbBtcGaugeLogs,
                 musdUsdcGaugeLogs,
+                savingsClaimedLogs,
             ] = await Promise.all([
                 // MUSD Vault deposits (where owner == user)
                 safeGetLogs(publicClient, {
@@ -225,18 +267,25 @@ export function useTotalProfit(): TotalProfitBreakdown {
                     args: { to: user },
                     fromBlock: BigInt(0),
                 }),
-                // LP Gauge rewards (MUSD/BTC pool)
+                // LP Gauge claimed rewards (MUSD/BTC pool) — ClaimRewards event
                 safeGetLogs(publicClient, {
                     address: c.MUSD_BTC_Gauge as `0x${string}`,
-                    event: GAUGE_REWARD_PAID,
-                    args: { user },
+                    event: GAUGE_CLAIM_REWARDS,
+                    args: { from: user },
                     fromBlock: BigInt(0),
                 }),
-                // LP Gauge rewards (MUSD/USDC pool)
+                // LP Gauge claimed rewards (MUSD/USDC pool) — ClaimRewards event
                 safeGetLogs(publicClient, {
                     address: c.MUSD_USDC_Gauge as `0x${string}`,
-                    event: GAUGE_REWARD_PAID,
-                    args: { user },
+                    event: GAUGE_CLAIM_REWARDS,
+                    args: { from: user },
+                    fromBlock: BigInt(0),
+                }),
+                // sMUSD savings vault: gauge-style claimed rewards (ClaimRewards event)
+                safeGetLogs(publicClient, {
+                    address: c.MUSDSavingsRate as `0x${string}`,
+                    event: GAUGE_CLAIM_REWARDS,
+                    args: { from: user },
                     fromBlock: BigInt(0),
                 }),
             ]);
@@ -367,18 +416,19 @@ export function useTotalProfit(): TotalProfitBreakdown {
                 console.warn("[useTotalProfit] savings current value:", e);
             }
 
-            const savingsProfitUSD = savingsWithdrawn + savingsCurrentValue - savingsDeposited;
+            // savingsProfitUSD computed after LP gauge section (needs savingsEarnedUSD/ClaimedUSD)
+            const savingsShareProfitUSD = savingsWithdrawn + savingsCurrentValue - savingsDeposited;
 
             // ── LP Gauge rewards ───────────────────────────────────────────────────
-            // Claimed from events (already out of Mezo)
+            // Claimed from ClaimRewards events (field is "amount" in Velodrome style)
             const musdBtcGaugeClaimed = parseFloat(
-                formatUnits(sumLogs(musdbBtcGaugeLogs, "reward"), 18)
+                formatUnits(sumLogs(musdbBtcGaugeLogs, "amount"), 18)
             );
             const musdUsdcGaugeClaimed = parseFloat(
-                formatUnits(sumLogs(musdUsdcGaugeLogs, "reward"), 18)
+                formatUnits(sumLogs(musdUsdcGaugeLogs, "amount"), 18)
             );
-            // Pending gauge rewards (earned but not yet claimed)
-            const [musdBtcPendingRaw, musdUsdcPendingRaw] = await Promise.all([
+            // Pending gauge rewards + sMUSD savings earned (all via earned(address))
+            const [musdBtcPendingRaw, musdUsdcPendingRaw, savingsEarnedRaw] = await Promise.all([
                 safeReadContract(publicClient, {
                     address: c.MUSD_BTC_Gauge as `0x${string}`,
                     abi: GAUGE_ABI_MINI,
@@ -391,21 +441,139 @@ export function useTotalProfit(): TotalProfitBreakdown {
                     functionName: "earned",
                     args: [user],
                 }),
+                // sMUSD savings vault pending claimable rewards
+                safeReadContract(publicClient, {
+                    address: c.MUSDSavingsRate as `0x${string}`,
+                    abi: GAUGE_ABI_MINI,
+                    functionName: "earned",
+                    args: [user],
+                }),
             ]);
 
-            // Gauge rewards are paid in MUSD (stablecoin) — $1 each
+            // LP gauge rewards in MUSD — $1 each
             const gaugePendingUSD =
                 (musdBtcPendingRaw ? parseFloat(formatUnits(musdBtcPendingRaw, 18)) : 0) +
                 (musdUsdcPendingRaw ? parseFloat(formatUnits(musdUsdcPendingRaw, 18)) : 0);
             const gaugeClaimedUSD = (musdBtcGaugeClaimed + musdUsdcGaugeClaimed) * MUSD_USD;
             const gaugeTotalUSD = gaugePendingUSD + gaugeClaimedUSD;
 
+            // sMUSD savings vault gauge rewards (separate from share appreciation)
+            const savingsEarnedUSD = savingsEarnedRaw
+                ? parseFloat(formatUnits(savingsEarnedRaw, 18)) * MUSD_USD
+                : 0;
+            const savingsClaimedUSD =
+                parseFloat(formatUnits(sumLogs(savingsClaimedLogs, "amount"), 18)) * MUSD_USD;
+
+            // Total savings profit = gauge rewards (earned + claimed) + any share appreciation
+            const savingsProfitUSD = savingsEarnedUSD + savingsClaimedUSD + Math.max(0, savingsShareProfitUSD);
+
+            // ── Voting rewards (from voting with veBTC) ────────────────────────────
+            // When a user votes with veBTC, they earn fees and bribes from
+            // FeesVotingReward and BribeVotingReward contracts per pool.
+            // These are accessed via Voter.gaugeToFees(gauge) and Voter.gaugeToBribe(gauge).
+            let votingRewardClaimedUSD = 0;
+            try {
+                const ZERO = "0x0000000000000000000000000000000000000000";
+                const pools = [
+                    c.MUSD_BTC_Pool,
+                    c.MUSD_USDC_Pool,
+                    c.MUSD_USDT_Pool,
+                    c.cbBTC_BTC_Pool,
+                ].filter(p => p !== ZERO) as `0x${string}`[];
+
+                if (pools.length > 0 && (c.Voter as string) !== ZERO) {
+                    // Step 1: Resolve gauge address for each pool
+                    const gaugeAddrs = await Promise.all(
+                        pools.map(pool =>
+                            safeReadContract(publicClient, {
+                                address: c.Voter as `0x${string}`,
+                                abi: VOTER_ABI_MINI,
+                                functionName: "gauges",
+                                args: [pool],
+                            })
+                        )
+                    );
+
+                    const validGauges = gaugeAddrs.filter(
+                        (g): g is `0x${string}` => g != null && g !== ZERO
+                    );
+
+                    if (validGauges.length > 0) {
+                        // Step 2: Get voting reward contract addresses (fees + bribes)
+                        const votingRewardAddrs = await Promise.all(
+                            validGauges.flatMap(gauge => [
+                                safeReadContract(publicClient, {
+                                    address: c.Voter as `0x${string}`,
+                                    abi: VOTER_ABI_MINI,
+                                    functionName: "gaugeToFees",
+                                    args: [gauge],
+                                }),
+                                safeReadContract(publicClient, {
+                                    address: c.Voter as `0x${string}`,
+                                    abi: VOTER_ABI_MINI,
+                                    functionName: "gaugeToBribe",
+                                    args: [gauge],
+                                }),
+                            ])
+                        );
+
+                        // Deduplicate and filter zero addresses
+                        const validVotingContracts = Array.from(
+                            new Set(
+                                votingRewardAddrs.filter(
+                                    (a): a is `0x${string}` => a != null && a !== ZERO
+                                )
+                            )
+                        );
+
+                        if (validVotingContracts.length > 0) {
+                            // Step 3: Scan ClaimRewards(from, reward, amount) events
+                            const votingLogs = await Promise.all(
+                                validVotingContracts.map(contractAddr =>
+                                    safeGetLogs(publicClient, {
+                                        address: contractAddr,
+                                        event: VOTING_REWARD_CLAIM,
+                                        args: { from: user },
+                                        fromBlock: BigInt(0),
+                                    })
+                                )
+                            );
+
+                            // Convert each log's amount to USD using reward token
+                            for (const logs of votingLogs) {
+                                for (const log of logs) {
+                                    const args = log.args as {
+                                        from?: string;
+                                        reward?: string;
+                                        amount?: bigint;
+                                    };
+                                    if (!args.amount) continue;
+                                    const rewardToken = args.reward?.toLowerCase();
+                                    let usdValue: number;
+                                    if (rewardToken === c.BTC.toLowerCase()) {
+                                        usdValue = parseFloat(formatUnits(args.amount, 18)) * btcPrice;
+                                    } else {
+                                        // MUSD or other stablecoin
+                                        usdValue = parseFloat(formatUnits(args.amount, 18)) * MUSD_USD;
+                                    }
+                                    votingRewardClaimedUSD += usdValue;
+                                }
+                            }
+                            console.log("[useTotalProfit] voting reward contracts found:", validVotingContracts.length, "total claimed USD:", votingRewardClaimedUSD);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("[useTotalProfit] voting rewards scan failed:", e);
+            }
+
             // ── Grand total ────────────────────────────────────────────────────────
             const totalProfitUSD =
                 veBtcTotalRewardsUSD +
-                Math.max(0, vaultProfitUSD) +      // Only count positive yield (negative = unrealised loss, shown elsewhere)
-                Math.max(0, savingsProfitUSD) +
-                gaugeTotalUSD;
+                Math.max(0, vaultProfitUSD) +
+                savingsProfitUSD +   // already has Math.max applied inside
+                gaugeTotalUSD +
+                votingRewardClaimedUSD;
 
             setData({
                 totalProfitUSD,
@@ -420,9 +588,12 @@ export function useTotalProfit(): TotalProfitBreakdown {
                 savingsDeposited,
                 savingsWithdrawn,
                 savingsCurrentValue,
+                savingsEarnedUSD,
+                savingsClaimedUSD,
                 gaugePendingUSD,
                 gaugeClaimedUSD,
                 gaugeTotalUSD,
+                votingRewardClaimedUSD,
                 isLoading: false,
                 error: null,
                 lastUpdated: new Date(),
@@ -435,7 +606,7 @@ export function useTotalProfit(): TotalProfitBreakdown {
                 error: err instanceof Error ? err : new Error("Failed to compute profit"),
             }));
         }
-    }, [publicClient, address, isConnected, btcPrice]);
+    }, [publicClient, address, isConnected, targetChainId, btcPrice]);
 
     useEffect(() => {
         compute();

@@ -166,13 +166,14 @@ function Dashboard() {
   const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error, btcPrice, btcPriceNote, btcChange24h, priceSource, totalRewardsPending } = usePositions();
   const { entries: leaderboardEntries, isLoading: lbLoading, error: lbError, lastUpdated: lbUpdated, refetch: lbRefetch } = useLeaderboard(30);
   const {
-    totalProfitUSD: lifetimeProfitUSD,
     veBtcPendingUSD,
     veBtcClaimedUSD,
     gaugePendingUSD,
     gaugeClaimedUSD,
     vaultProfitUSD,
-    savingsProfitUSD,
+    savingsEarnedUSD,
+    savingsClaimedUSD,
+    votingRewardClaimedUSD,
     isLoading: profitLoading,
   } = useTotalProfit();
 
@@ -206,10 +207,24 @@ function Dashboard() {
     ? realPositions.map(p => convertToPositionCard(p, btcPrice))
     : mockPositions;
 
-  // Resolve current user's rank from live leaderboard  
+  // Resolve current user's rank from live leaderboard
   const currentUserRank = address
     ? leaderboardEntries.find(e => e.address.toLowerCase() === address.toLowerCase())?.rank
     : undefined;
+
+  // Total Profit breakdown — use totalRewardsPending from usePositions as live fallback
+  // Pending: veBTC claimable + LP gauge pending + sMUSD vault pending
+  const pendingDisplay = (veBtcPendingUSD + gaugePendingUSD + savingsEarnedUSD) > 0
+    ? veBtcPendingUSD + gaugePendingUSD + savingsEarnedUSD
+    : totalRewardsPending;
+  // Claimed: veBTC claimed + LP gauge claimed + sMUSD vault claimed
+  const claimedDisplay = veBtcClaimedUSD + gaugeClaimedUSD + savingsClaimedUSD;
+  // Vault yield: MUSD vault share appreciation only (sMUSD rewards already in above rows)
+  const vaultDisplay = Math.max(0, vaultProfitUSD);
+  // Vote rewards: fees/bribes earned from voting with veBTC on gauges (historical claims)
+  const voteRewardsDisplay = votingRewardClaimedUSD;
+  const totalProfitDisplay = pendingDisplay + claimedDisplay + vaultDisplay + voteRewardsDisplay;
+  const hasAnyProfitActivity = !profitLoading && totalProfitDisplay > 0;
 
   const historicalData = mockHistoricalData;
 
@@ -296,9 +311,15 @@ function Dashboard() {
             </div>
             <div>
               <span className="stat-value">
-                {profitLoading ? "Calculating…" : formatCurrency(lifetimeProfitUSD)}
+                {profitLoading ? "Scanning…" : formatCurrency(totalProfitDisplay)}
               </span>
-              <p className="text-xs text-gray-400 mt-0.5">All-time earnings from Mezo</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {profitLoading
+                  ? "Scanning on-chain activity…"
+                  : hasAnyProfitActivity
+                  ? "All-time earnings from Mezo"
+                  : "No yield activity found on this network yet"}
+              </p>
             </div>
             <div className="border-t border-gray-100 pt-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -307,7 +328,7 @@ function Dashboard() {
                   Pending rewards
                 </span>
                 <span className="font-semibold text-yellow-600">
-                  {profitLoading ? "…" : formatCurrency(veBtcPendingUSD + gaugePendingUSD)}
+                  {profitLoading ? "…" : pendingDisplay > 0 ? formatCurrency(pendingDisplay) : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -316,7 +337,7 @@ function Dashboard() {
                   Claimed rewards
                 </span>
                 <span className="font-semibold text-green-600">
-                  {profitLoading ? "…" : formatCurrency(veBtcClaimedUSD + gaugeClaimedUSD)}
+                  {profitLoading ? "…" : claimedDisplay > 0 ? formatCurrency(claimedDisplay) : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -325,7 +346,16 @@ function Dashboard() {
                   Vault yield
                 </span>
                 <span className="font-semibold text-blue-600">
-                  {profitLoading ? "…" : formatCurrency(Math.max(0, vaultProfitUSD) + Math.max(0, savingsProfitUSD))}
+                  {profitLoading ? "…" : vaultDisplay > 0 ? formatCurrency(vaultDisplay) : "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="inline-block w-2 h-2 rounded-full bg-violet-400" />
+                  Vote rewards
+                </span>
+                <span className="font-semibold text-violet-600">
+                  {profitLoading ? "…" : voteRewardsDisplay > 0 ? formatCurrency(voteRewardsDisplay) : "—"}
                 </span>
               </div>
             </div>
