@@ -23,11 +23,12 @@ import { PortfolioChart } from "@/components/ui/portfolio-chart";
 import {
   mockPositions,
   mockPortfolioSummary,
-  mockLeaderboard,
   mockHistoricalData,
 } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/utils";
 import { usePositions, type UserPosition } from "@/hooks/usePositions";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { useTotalProfit } from "@/hooks/useTotalProfit";
 import { TokenBalancesDebug } from "@/components/debug/token-balances";
 import { PoolDiscoveryDebug } from "@/components/debug/pool-discovery";
 
@@ -119,7 +120,7 @@ function HeroSection() {
 }
 
 // Helper to convert UserPosition to the format PositionCard expects
-function convertToPositionCard(pos: UserPosition) {
+function convertToPositionCard(pos: UserPosition, btcPrice = 104_000) {
   // Map position type to poolType
   const poolTypeMap: Record<string, "vault" | "lp" | "staking" | "lending"> = {
     lock: "staking",
@@ -148,11 +149,12 @@ function convertToPositionCard(pos: UserPosition) {
     apy: pos.apy,
     tokenSymbol: pos.token,
     tokenIcon: pos.token === "BTC" ? "/btc-logo.png" : "/musd-logo.png",
-    unlockDate: pos.unlockDate || undefined, // Use unlock date for locked positions
-    // Pass rewards if available
+    unlockDate: pos.unlockDate || undefined,
+    contractAddress: pos.contractAddress,
+    // Pass rewards with live price
     rewards: pos.rewards ? {
       pendingAmount: pos.rewards.pending,
-      pendingUSD: pos.rewards.pending * (pos.rewards.token === 'BTC' ? 104000 : 1), // Use estimated price
+      pendingUSD: pos.rewards.pending * (pos.rewards.token === 'BTC' ? btcPrice : 1),
       rewardToken: pos.rewards.token,
     } : undefined,
   };
@@ -162,10 +164,21 @@ function convertToPositionCard(pos: UserPosition) {
 function Dashboard() {
   const { isConnected, address, chain } = useAccount();
   const { totalValue, totalValueBTC, totalDeposited, totalDepositedBTC, totalPnL, pnlPercent, positions: realPositions, isLoading, error, btcPrice, btcPriceNote, btcChange24h, priceSource, totalRewardsPending } = usePositions();
+  const { entries: leaderboardEntries, isLoading: lbLoading, error: lbError, lastUpdated: lbUpdated, refetch: lbRefetch } = useLeaderboard(30);
+  const {
+    totalProfitUSD: lifetimeProfitUSD,
+    veBtcPendingUSD,
+    veBtcClaimedUSD,
+    gaugePendingUSD,
+    gaugeClaimedUSD,
+    vaultProfitUSD,
+    savingsProfitUSD,
+    isLoading: profitLoading,
+  } = useTotalProfit();
 
   // Use real data when connected (even if empty), mock data only when disconnected
   const useRealData = isConnected;
-  
+
   const summary = useRealData ? {
     totalValueUSD: totalValue,
     totalValueBTC: totalValueBTC,
@@ -174,26 +187,30 @@ function Dashboard() {
     totalPnlUSD: totalPnL,
     totalPnlPercentage: pnlPercent,
     positionCount: realPositions.length,
-    bestPerformingPosition: realPositions.reduce((best, current) => 
+    bestPerformingPosition: realPositions.reduce((best, current) =>
       current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
     ) ? {
-      poolName: realPositions.reduce((best, current) => 
+      poolName: realPositions.reduce((best, current) =>
         current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
       )?.name || '',
-      pnl: realPositions.reduce((best, current) => 
+      pnl: realPositions.reduce((best, current) =>
         current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
       )?.pnl || 0,
-      apy: realPositions.reduce((best, current) => 
+      apy: realPositions.reduce((best, current) =>
         current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
       )?.apy || 0,
     } : null,
   } : mockPortfolioSummary;
-  
-  const positions = useRealData 
-    ? realPositions.map(convertToPositionCard)
+
+  const positions = useRealData
+    ? realPositions.map(p => convertToPositionCard(p, btcPrice))
     : mockPositions;
-  
-  const leaderboard = mockLeaderboard;
+
+  // Resolve current user's rank from live leaderboard  
+  const currentUserRank = address
+    ? leaderboardEntries.find(e => e.address.toLowerCase() === address.toLowerCase())?.rank
+    : undefined;
+
   const historicalData = mockHistoricalData;
 
   return (
@@ -230,7 +247,7 @@ function Dashboard() {
             </div>
           )}
         </div>
-        
+
         {/* Error display */}
         {error && (
           <div className="mt-4 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3">
@@ -269,14 +286,60 @@ function Dashboard() {
           format="currency"
           icon={<PiggyBank className="h-5 w-5" />}
         />
-        <StatCard
-          label="Total Profit"
-          value={summary.totalPnlUSD}
-          format="currency"
-          change={summary.totalPnlPercentage}
-          icon={<TrendingUp className="h-5 w-5" />}
-          highlight
-        />
+        {useRealData ? (
+          <div className="card-highlight p-6 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="stat-label">Total Profit</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pulse-red-50 text-pulse-red-600">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+            <div>
+              <span className="stat-value">
+                {profitLoading ? "Calculating…" : formatCurrency(lifetimeProfitUSD)}
+              </span>
+              <p className="text-xs text-gray-400 mt-0.5">All-time earnings from Mezo</p>
+            </div>
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" />
+                  Pending rewards
+                </span>
+                <span className="font-semibold text-yellow-600">
+                  {profitLoading ? "…" : formatCurrency(veBtcPendingUSD + gaugePendingUSD)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
+                  Claimed rewards
+                </span>
+                <span className="font-semibold text-green-600">
+                  {profitLoading ? "…" : formatCurrency(veBtcClaimedUSD + gaugeClaimedUSD)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5 text-gray-500">
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-400" />
+                  Vault yield
+                </span>
+                <span className="font-semibold text-blue-600">
+                  {profitLoading ? "…" : formatCurrency(Math.max(0, vaultProfitUSD) + Math.max(0, savingsProfitUSD))}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <StatCard
+            label="Total Profit"
+            value={summary.totalPnlUSD}
+            format="currency"
+            change={summary.totalPnlPercentage}
+            icon={<TrendingUp className="h-5 w-5" />}
+            highlight
+          />
+        )}
         <StatCard
           label="Positions"
           value={summary.positionCount}
@@ -284,7 +347,7 @@ function Dashboard() {
           icon={<Activity className="h-5 w-5" />}
         />
       </div>
-      
+
       {/* BTC Price Banner */}
       {useRealData && btcPrice && (
         <div className="mb-8 p-4 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200">
@@ -329,7 +392,7 @@ function Dashboard() {
               <TokenBalancesDebug />
             </div>
           </details>
-          
+
           <details className="group">
             <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
               🔍 Debug: Dynamic Pool Discovery (Auto-discovers ALL pools)
@@ -363,9 +426,9 @@ function Dashboard() {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Your Positions</h2>
             <p className="text-sm text-gray-500">
-              {positions.length > 0 
+              {positions.length > 0
                 ? `${positions.length} active position${positions.length !== 1 ? 's' : ''} across ${new Set(positions.map((p) => p.protocol.id)).size} protocol${new Set(positions.map((p) => p.protocol.id)).size !== 1 ? 's' : ''}`
-                : isConnected 
+                : isConnected
                   ? "Scanning blockchain for positions..."
                   : "Connect wallet to see your positions"
               }
@@ -405,9 +468,9 @@ function Dashboard() {
             <p className="text-gray-500 mb-4">
               No yield positions detected for this wallet on Mezo Testnet.
             </p>
-            <a 
-              href="https://mezo.org" 
-              target="_blank" 
+            <a
+              href="https://mezo.org"
+              target="_blank"
               rel="noopener noreferrer"
               className="btn-primary inline-block"
             >
@@ -425,10 +488,15 @@ function Dashboard() {
 
       {/* Leaderboard Section */}
       <div className="mb-8">
-        <LeaderboardTable 
-          entries={leaderboard.slice(0, 5)} 
+        <LeaderboardTable
+          entries={leaderboardEntries.slice(0, 5)}
           currentUserAddress={address}
-          currentUserRank={isConnected ? 42 : undefined} // TODO: Calculate actual rank from blockchain
+          currentUserRank={currentUserRank}
+          isLoading={lbLoading}
+          error={lbError}
+          lastUpdated={lbUpdated}
+          onRefresh={lbRefetch}
+          compact
         />
       </div>
 
@@ -465,7 +533,7 @@ export default function Home() {
   // Show hero for non-connected users, dashboard for connected
   // For demo purposes, we'll show dashboard by default
   // In production, you'd check isConnected
-  
+
   return (
     <>
       {!isConnected && <HeroSection />}

@@ -16,6 +16,8 @@ export interface Position {
   unlockDate?: Date; // For locked positions
   tokenSymbol: string;
   tokenIcon?: string;
+  /** On-chain contract address for explorer links */
+  contractAddress?: string;
   // Enhanced reward tracking
   rewards?: {
     pendingAmount: number;
@@ -57,9 +59,20 @@ export interface WalletLeaderboardEntry {
   totalValueUSD: number;
   totalPnlUSD: number;
   pnlPercentage: number;
+  /** Sum of claimed + pending rewards in USD */
+  totalRewardsUSD: number;
+  /** Already claimed / withdrawn rewards in USD */
+  claimedRewardsUSD: number;
+  /** Currently pending / claimable rewards in USD */
+  pendingRewardsUSD: number;
   topStrategy: string;
   positionCount: number;
   lastActive: Date;
+  // optional position flags (populated by useLeaderboard)
+  hasVeBtc?: boolean;
+  hasVault?: boolean;
+  hasSavings?: boolean;
+  veBtcLocked?: number;
 }
 
 export interface HistoricalDataPoint {

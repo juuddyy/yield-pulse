@@ -14,6 +14,7 @@ import {
 
 import { PositionCard } from "@/components/ui/position-card";
 import { usePositions, UserPosition } from "@/hooks/usePositions";
+import { useTotalProfit } from "@/hooks/useTotalProfit";
 import { mockPositions, mockPortfolioSummary } from "@/lib/mock-data";
 import { formatCurrency, formatPercentage } from "@/lib/utils";
 import { Position } from "@/types";
@@ -54,21 +55,22 @@ function convertToPositionCard(pos: UserPosition): Position {
 export default function PositionsPage() {
   const { isConnected, address } = useAccount();
   const { positions: realPositions, totalPnL, isLoading } = usePositions();
-  
+  const { totalProfitUSD: lifetimeProfitUSD } = useTotalProfit();
+
   // Use real data when connected (even if empty), mock data only when disconnected
   const useRealData = isConnected;
-  const positions = useRealData 
+  const positions = useRealData
     ? realPositions.map(convertToPositionCard)
     : mockPositions;
-  
+
   const summary = useRealData ? {
     totalPnlUSD: totalPnL,
-    bestPerformingPosition: realPositions.reduce((best, current) => 
+    bestPerformingPosition: realPositions.reduce((best, current) =>
       current.pnlPercent > (best?.pnlPercent || 0) ? current : best, realPositions[0]
     ),
   } : mockPortfolioSummary;
 
-  const avgApy = positions.length > 0 
+  const avgApy = positions.length > 0
     ? positions.reduce((sum, p) => sum + p.apy, 0) / positions.length
     : 0;
 
@@ -131,10 +133,10 @@ export default function PositionsPage() {
             <div>
               <p className="text-sm text-gray-500">Best Performer</p>
               <p className="text-xl font-bold text-profit">
-                {summary.bestPerformingPosition 
-                  ? `+${formatPercentage('pnlPercent' in summary.bestPerformingPosition 
-                      ? summary.bestPerformingPosition.pnlPercent 
-                      : summary.bestPerformingPosition.pnlPercentage || 0)}`
+                {summary.bestPerformingPosition
+                  ? `+${formatPercentage('pnlPercent' in summary.bestPerformingPosition
+                    ? summary.bestPerformingPosition.pnlPercent
+                    : summary.bestPerformingPosition.pnlPercentage || 0)}`
                   : "N/A"
                 }
               </p>
@@ -164,7 +166,7 @@ export default function PositionsPage() {
             <div>
               <p className="text-sm text-gray-500">Total Profit</p>
               <p className="text-xl font-bold text-profit">
-                {formatCurrency(summary.totalPnlUSD, { showSign: true })}
+                {formatCurrency(useRealData ? lifetimeProfitUSD : summary.totalPnlUSD, { showSign: true })}
               </p>
             </div>
           </div>
@@ -215,7 +217,7 @@ export default function PositionsPage() {
             No positions found
           </h3>
           <p className="text-gray-500 mb-6">
-            {isConnected 
+            {isConnected
               ? "No yield positions detected in your wallet on Mezo testnet"
               : "Connect your wallet to see your yield positions"
             }

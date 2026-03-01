@@ -78,10 +78,17 @@ export const MEZO_MAINNET_CONTRACTS = {
   mUSDC: "0x04671C72Aab5AC02A03c1098314b1BB6B560c197" as const,
   mUSDT: "0xeB5a5d39dE4Ea42C2Aa6A57EcA2894376683bB8E" as const,
 
+  // Gauges (reward distributors for LP stakers)
+  // Gauge addresses from Mezo explorer / tigris deployments
+  MUSD_BTC_Gauge: "0x0000000000000000000000000000000000000000" as const, // TODO: find actual gauge address
+  MUSD_USDC_Gauge: "0x0000000000000000000000000000000000000000" as const, // TODO: find actual gauge address
+  MUSD_USDT_Gauge: "0x0000000000000000000000000000000000000000" as const,
+
   // System Contracts
   BTCCaller: "0x7b7C000000000000000000000000000000000000" as const,
   MEZOCaller: "0x7B7c000000000000000000000000000000000001" as const,
 } as const;
+
 
 // Chain IDs
 export const CHAIN_IDS = {
